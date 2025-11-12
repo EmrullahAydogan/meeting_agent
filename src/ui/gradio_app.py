@@ -4,13 +4,14 @@ Displays real-time transcription, translation, and research results.
 """
 
 import gradio as gr
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any
 from loguru import logger
 import time
+import threading
 
 
 class MeetingAgentUI:
-    """Gradio UI for Meeting Agent."""
+    """Gradio UI for Meeting Agent with real-time updates."""
 
     def __init__(
         self,
@@ -36,7 +37,44 @@ class MeetingAgentUI:
         self.is_recording = False
         self.app = None
 
-        logger.info("MeetingAgentUI initialized")
+        # Shared state for real-time updates
+        self.shared_state = {
+            'transcript': '',
+            'translation': '',
+            'detected_lang': 'Not detected yet',
+            'topics': '',
+            'summary': '',
+            'actions': '',
+            'research': '<p>Research results will appear here...</p>',
+            'last_update': time.time()
+        }
+
+        # Lock for thread-safe access
+        self.state_lock = threading.Lock()
+
+        logger.info("MeetingAgentUI initialized with real-time updates")
+
+    def update_state(self, key: str, value: Any):
+        """
+        Thread-safe update of shared state.
+
+        Args:
+            key: State key to update
+            value: New value
+        """
+        with self.state_lock:
+            self.shared_state[key] = value
+            self.shared_state['last_update'] = time.time()
+
+    def get_state(self) -> Dict[str, Any]:
+        """
+        Thread-safe get of shared state.
+
+        Returns:
+            Copy of current state
+        """
+        with self.state_lock:
+            return self.shared_state.copy()
 
     def create_interface(self):
         """Create Gradio interface."""
@@ -154,6 +192,20 @@ class MeetingAgentUI:
                 self.is_recording = False
                 return "⏹️ Stopped"
 
+            def update_displays():
+                """Update all display components with latest state."""
+                state = self.get_state()
+                return (
+                    state['transcript'],
+                    state['translation'],
+                    state['detected_lang'],
+                    state['topics'],
+                    state['summary'],
+                    state['actions'],
+                    state['research']
+                )
+
+            # Button click events
             start_btn.click(
                 fn=start_recording,
                 inputs=[target_lang, enable_research],
@@ -163,6 +215,21 @@ class MeetingAgentUI:
             stop_btn.click(
                 fn=stop_recording,
                 outputs=status_text
+            )
+
+            # Real-time updates - poll every 2 seconds
+            update_timer = gr.Timer(value=2, active=True)
+            update_timer.tick(
+                fn=update_displays,
+                outputs=[
+                    transcript_box,
+                    translation_box,
+                    detected_lang,
+                    topics_box,
+                    summary_box,
+                    actions_box,
+                    research_box
+                ]
             )
 
             # Store references
@@ -182,18 +249,43 @@ class MeetingAgentUI:
         self.app = app
         return app
 
-    def update_transcript(self, text: str):
-        """Update transcript display."""
-        if self.app and 'transcript' in self.components:
-            return text
+    def append_transcript(self, text: str, timestamp: str = None):
+        """
+        Append text to transcript (accumulative).
 
-    def update_translation(self, text: str):
-        """Update translation display."""
-        if self.app and 'translation' in self.components:
-            return text
+        Args:
+            text: Text to append
+            timestamp: Optional timestamp string
+        """
+        with self.state_lock:
+            if timestamp:
+                entry = f"[{timestamp}] {text}\n\n"
+            else:
+                entry = f"{text}\n\n"
+            self.shared_state['transcript'] += entry
 
-    def update_detected_language(self, language: str):
-        """Update detected language display."""
+    def append_translation(self, text: str, timestamp: str = None):
+        """
+        Append translation (accumulative).
+
+        Args:
+            text: Translation text to append
+            timestamp: Optional timestamp string
+        """
+        with self.state_lock:
+            if timestamp:
+                entry = f"[{timestamp}] {text}\n\n"
+            else:
+                entry = f"{text}\n\n"
+            self.shared_state['translation'] += entry
+
+    def set_detected_language(self, language: str):
+        """
+        Update detected language display.
+
+        Args:
+            language: Language code (e.g., 'en', 'tr')
+        """
         lang_names = {
             'en': 'English',
             'tr': 'Turkish (Türkçe)',
@@ -209,18 +301,84 @@ class MeetingAgentUI:
             'ar': 'Arabic'
         }
         display_name = lang_names.get(language, language.upper())
-        if self.app and 'detected_lang' in self.components:
-            return f"🗣️ {display_name}"
-        return display_name
+        self.update_state('detected_lang', f"🗣️ {display_name}")
 
-    def update_analysis(self, topics: str, summary: str, actions: str):
-        """Update analysis display."""
-        return topics, summary, actions
+    def set_analysis(self, topics: list, summary: str, actions: list):
+        """
+        Update analysis results.
 
-    def update_research(self, html: str):
-        """Update research display."""
-        if self.app and 'research' in self.components:
-            return html
+        Args:
+            topics: List of topics
+            summary: Summary text
+            actions: List of action items
+        """
+        # Format topics
+        if topics:
+            topics_text = "\n".join(f"• {topic}" for topic in topics)
+        else:
+            topics_text = "No topics extracted yet..."
+
+        # Format actions
+        if actions:
+            actions_text = "\n".join(f"{i}. {action}" for i, action in enumerate(actions, 1))
+        else:
+            actions_text = "No action items yet..."
+
+        self.update_state('topics', topics_text)
+        self.update_state('summary', summary if summary else "No summary yet...")
+        self.update_state('actions', actions_text)
+
+    def set_research(self, research_data: list):
+        """
+        Update research results.
+
+        Args:
+            research_data: List of research result dictionaries
+        """
+        if not research_data:
+            html = "<p>No research results yet...</p>"
+        else:
+            html = "<div style='font-family: sans-serif;'>"
+            for result in research_data:
+                query = result.get('query', 'Unknown')
+                results = result.get('results', [])
+
+                html += f"<h3 style='color: #2563eb;'>🔍 {query}</h3>"
+
+                if results:
+                    for i, item in enumerate(results[:3], 1):  # Top 3 results
+                        title = item.get('title', 'No title')
+                        url = item.get('url', '#')
+                        snippet = item.get('snippet', '')
+
+                        html += f"""
+                        <div style='margin: 10px 0; padding: 10px; background: #f3f4f6; border-radius: 5px;'>
+                            <strong>{i}. <a href='{url}' target='_blank' style='color: #1d4ed8;'>{title}</a></strong>
+                            <p style='margin: 5px 0; color: #6b7280; font-size: 0.9em;'>{snippet}</p>
+                        </div>
+                        """
+                else:
+                    html += "<p style='color: #9ca3af;'>No results found</p>"
+
+                html += "<hr style='margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;'>"
+
+            html += "</div>"
+
+        self.update_state('research', html)
+
+    def clear_displays(self):
+        """Clear all display content."""
+        with self.state_lock:
+            self.shared_state = {
+                'transcript': '',
+                'translation': '',
+                'detected_lang': 'Not detected yet',
+                'topics': '',
+                'summary': '',
+                'actions': '',
+                'research': '<p>Research results will appear here...</p>',
+                'last_update': time.time()
+            }
 
     def launch(self):
         """Launch Gradio app."""

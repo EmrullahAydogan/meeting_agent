@@ -14,8 +14,14 @@ Automatically transcribes, translates, analyzes, and researches topics discussed
   - Works both ways: EN→TR or TR→EN
 - **🤖 AI Analysis**: Topic extraction, summarization, and action items via DeepSeek
 - **🔍 Smart Research**: Automatic web research on discussed topics
+- **📺 Live Real-time UI Updates**:
+  - **Auto-refresh every 2 seconds**
+  - Transcripts appear as they're spoken
+  - Translations update instantly
+  - Analysis results stream in live
+  - No manual refresh needed
 - **👥 Speaker Diarization**: Identify who is speaking (optional)
-- **💻 Modern UI**: Clean Gradio interface with real-time updates
+- **💻 Modern UI**: Clean Gradio interface with tabbed views
 - **💰 Cost-Effective**: Mostly open-source, ~$2-5/month for DeepSeek API
 
 ## 🏗️ Architecture

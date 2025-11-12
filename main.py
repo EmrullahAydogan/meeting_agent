@@ -196,6 +196,14 @@ class MeetingAgent:
                 translation = text
                 logger.debug(f"Skipping translation: source={language}, target={target_lang_code}")
 
+            # Update UI with transcript and translation
+            if self.ui:
+                from datetime import datetime
+                timestamp = datetime.fromtimestamp(time.time()).strftime('%H:%M:%S')
+                self.ui.append_transcript(text, timestamp)
+                self.ui.append_translation(translation, timestamp)
+                self.ui.set_detected_language(language)
+
             # Queue for analysis
             self.processing_queue.put({
                 'type': 'transcript',
@@ -252,8 +260,15 @@ class MeetingAgent:
                                 item['language']
                             )
 
+                            # Update UI with analysis results
+                            if self.ui:
+                                self.ui.set_analysis(topics, summary, actions)
+                                logger.debug("Updated UI with analysis results")
+
                             # Research topics if enabled by user
                             research_enabled = self.user_settings.get('enable_research', True)
+                            research_results = []
+
                             if self.researcher and topics and research_enabled:
                                 queries = self.analyzer.generate_research_queries(
                                     topics[:3],  # Top 3 topics
@@ -264,6 +279,11 @@ class MeetingAgent:
                                     queries,
                                     fetch_content=False
                                 )
+
+                                # Update UI with research results
+                                if self.ui:
+                                    self.ui.set_research(research_results)
+                                    logger.debug("Updated UI with research results")
 
                                 logger.info(f"Research completed for {len(queries)} queries")
                             elif not research_enabled:
@@ -303,6 +323,10 @@ class MeetingAgent:
         # Initialize components if not already done
         if not self.transcriber:
             self.initialize_components()
+
+        # Clear UI displays for fresh start
+        if self.ui:
+            self.ui.clear_displays()
 
         self.is_running = True
 
