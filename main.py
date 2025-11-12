@@ -8,6 +8,7 @@ import sys
 import yaml
 import threading
 import queue
+import platform
 from pathlib import Path
 from typing import Optional
 from loguru import logger
@@ -57,6 +58,9 @@ class MeetingAgent:
         logger.info("Meeting Agent Starting...")
         logger.info("="*50)
 
+        # Platform detection and warnings
+        self._check_platform_compatibility()
+
         # Create data directories
         os.makedirs(config['storage']['transcripts_dir'], exist_ok=True)
         os.makedirs(config['storage']['recordings_dir'], exist_ok=True)
@@ -91,6 +95,80 @@ class MeetingAgent:
         self.processing_queue = queue.Queue()
 
         logger.info("Meeting Agent initialized")
+
+    def _check_platform_compatibility(self):
+        """Check platform and warn about compatibility issues."""
+        system = platform.system()
+        machine = platform.machine()
+
+        logger.info(f"Platform: {system} ({machine})")
+
+        if system == "Darwin":  # macOS
+            logger.warning("="*50)
+            logger.warning("MACOS DETECTED")
+            logger.warning("="*50)
+            logger.warning("macOS does NOT support CUDA!")
+            logger.warning("")
+            logger.warning("Recommendations:")
+            logger.warning("  ✓ Use 'Gemini Live' mode (ultra-fast, GPU not needed)")
+            logger.warning("  ✗ Avoid 'Classic' mode (will run on CPU, 10x slower)")
+            logger.warning("")
+            logger.warning("If you must use Classic mode, expect slow performance:")
+            logger.warning("  - Whisper will run on CPU (very slow)")
+            logger.warning("  - Use 'tiny' or 'base' model only")
+            logger.warning("  - 5-10 second delay per transcription")
+            logger.warning("="*50)
+
+            # Check for Apple Silicon
+            if machine == "arm64":
+                logger.info("Apple Silicon detected (M1/M2/M3)")
+                logger.info("PyTorch may use MPS acceleration (limited)")
+
+        elif system == "Windows":
+            logger.info("Windows detected")
+            logger.info("")
+            logger.info("Windows Setup Notes:")
+            logger.info("  1. Virtual Audio Cable required (VB-Cable or VoiceMeeter)")
+            logger.info("  2. For Classic mode: CUDA Toolkit + Visual Studio needed")
+            logger.info("  3. Recommended: Use 'Gemini Live' mode (easier setup)")
+            logger.info("")
+            logger.info("For detailed setup guide, see: docs/WINDOWS_SETUP.md")
+            logger.info("Quick install: Run setup_windows.ps1 script")
+
+            # Check for CUDA on Windows
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    gpu_name = torch.cuda.get_device_name(0)
+                    logger.info(f"✓ CUDA available: {gpu_name}")
+                else:
+                    logger.warning("⚠ CUDA not available")
+                    logger.warning("  Classic mode will run on CPU (slow)")
+                    logger.warning("  Recommended: Use 'Gemini Live' mode instead")
+            except ImportError:
+                logger.info("PyTorch not installed (Classic mode unavailable)")
+
+        elif system == "Linux":
+            logger.info("Linux detected - optimal platform ✓")
+
+            # Check for CUDA on Linux
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    gpu_name = torch.cuda.get_device_name(0)
+                    vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                    logger.info(f"✓ CUDA available: {gpu_name} ({vram:.1f}GB)")
+                    logger.info("  Both Classic and Gemini Live modes available")
+                else:
+                    logger.warning("⚠ CUDA not available (GPU not detected)")
+                    logger.warning("  Classic mode will run on CPU")
+                    logger.warning("  Recommended: Use 'Gemini Live' mode")
+            except ImportError:
+                logger.info("PyTorch not installed (Classic mode unavailable)")
+
+        else:
+            logger.warning(f"Unknown platform: {system}")
+            logger.warning("Compatibility not tested, proceed with caution")
 
     def initialize_components(self):
         """Initialize all components based on mode (lazy loading)."""

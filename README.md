@@ -42,78 +42,141 @@ Web Research → DuckDuckGo + Content Extraction
 Gradio UI → Display Results
 ```
 
+## 🎯 Two Processing Modes
+
+### Classic Mode (Whisper + DeepSeek)
+- **Full control** over each component
+- **Offline STT** with Faster-Whisper
+- **GPU required** for good performance
+- Best for: Privacy, customization, offline use
+
+### Gemini Live Mode (Recommended for Windows/macOS)
+- **Ultra-fast** (200-500ms latency vs 3-5s)
+- **No GPU required** - runs on any machine
+- **All-in-one** processing (STT + Translation + Analysis)
+- Best for: Speed, easy setup, cloud-based processing
+
 ## 📋 Requirements
 
 ### Hardware
-- **GPU**: CUDA-capable GPU recommended (8GB+ VRAM)
-  - Minimum: 8GB VRAM (medium Whisper model)
-  - Recommended: 12-16GB VRAM (large Whisper model)
-  - Without GPU: CPU mode available (slower)
+
+| Component | Classic Mode | Gemini Live Mode |
+|-----------|-------------|------------------|
+| **GPU** | NVIDIA GPU with 8GB+ VRAM | Not required |
+| **RAM** | 16GB recommended | 4GB+ |
+| **CPU** | Any modern CPU | Any modern CPU |
+| **Internet** | Required (for DeepSeek API) | Required (for Gemini API) |
 
 ### Software
-- **OS**: Linux (primary), Windows, macOS
+- **OS**:
+  - ✅ **Linux**: Best support (both modes)
+  - ✅ **Windows**: Good support (Gemini Live recommended)
+  - ⚠️ **macOS**: Gemini Live ONLY (no CUDA support)
 - **Python**: 3.10+
-- **CUDA**: 11.8+ (for GPU acceleration)
+- **CUDA**: 11.8+ (Classic mode only)
 
 ## 🚀 Quick Start
 
-### 1. Clone Repository
+### Windows Users - Automated Setup ⚡
+
+```powershell
+# Clone repository
+git clone <repository-url>
+cd meeting_agent
+
+# Run automated setup script (Gemini Live mode)
+powershell -ExecutionPolicy Bypass -File setup_windows.ps1
+
+# Or for full GPU setup (Classic mode)
+powershell -ExecutionPolicy Bypass -File setup_windows.ps1 -FullInstall
+```
+
+**For detailed Windows setup guide**, see: [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md)
+
+---
+
+### Linux/macOS - Manual Setup
+
+#### 1. Clone Repository
 
 ```bash
 git clone <repository-url>
 cd meeting_agent
 ```
 
-### 2. Install Dependencies
+#### 2. Install Dependencies
 
+**For Gemini Live (Quick, No GPU needed):**
 ```bash
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
-# Install PyTorch with CUDA (adjust for your CUDA version)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# Minimal dependencies
+pip install numpy sounddevice pyyaml python-dotenv loguru gradio
+pip install google-generativeai requests beautifulsoup4 duckduckgo-search
+```
 
-# Install other dependencies
+**For Classic Mode (Full install with GPU):**
+```bash
+python -m venv venv
+source venv/bin/activate
+
+# Install PyTorch with CUDA
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install all dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment
+#### 3. Configure Environment
 
 ```bash
 # Copy example environment file
 cp .env.example .env
 
-# Edit .env and add your DeepSeek API key
+# Edit .env and add API keys
 nano .env
 ```
 
-Get your DeepSeek API key from: https://platform.deepseek.com/
+**Get API Keys:**
+- DeepSeek (Classic mode): https://platform.deepseek.com/
+- Gemini (Live mode): https://makersuite.google.com/app/apikey
 
 ```env
-DEEPSEEK_API_KEY=your_api_key_here
+# For Classic Mode
+DEEPSEEK_API_KEY=your_deepseek_key_here
+
+# For Gemini Live Mode
+GEMINI_API_KEY=your_gemini_key_here
 ```
 
-### 4. Configure Audio (Linux)
+**Note**: API keys can also be entered directly in the UI under "Advanced Settings".
 
-For capturing system audio on Linux:
+#### 4. Configure Audio
 
+**Linux:**
 ```bash
-# Install PulseAudio tools
+# PulseAudio (usually pre-installed)
 sudo apt-get install pulseaudio pavucontrol
 
 # List audio devices
 python -c "import sounddevice as sd; print(sd.query_devices())"
 
-# Configure audio loopback (optional)
+# Configure audio loopback
 pactl load-module module-loopback
 ```
 
-For Windows: Install [VB-Cable](https://vb-audio.com/Cable/) or similar virtual audio device.
+**Windows:**
+- Install [VB-Audio Virtual Cable](https://vb-audio.com/Cable/) (recommended)
+- Or [VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm) (free)
+- See [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) for detailed instructions
 
-For macOS: Install [BlackHole](https://existential.audio/blackhole/) or [Loopback](https://rogueamoeba.com/loopback/).
+**macOS:**
+- Install [BlackHole](https://existential.audio/blackhole/)
+- Create Multi-Output Device in Audio MIDI Setup
+- Route meeting audio through BlackHole
 
-### 5. Run Application
+#### 5. Run Application
 
 ```bash
 # With UI (recommended)
