@@ -98,6 +98,14 @@ class MeetingAgentUI:
                     # Settings
                     gr.Markdown("### Settings")
 
+                    # Mode Selection
+                    mode_selector = gr.Radio(
+                        choices=["Classic (Whisper + DeepSeek)", "Gemini Live (Ultra Fast)"],
+                        value="Classic (Whisper + DeepSeek)",
+                        label="🔧 Processing Mode",
+                        info="Classic: Full control, offline STT | Live: Ultra-fast, all-in-one"
+                    )
+
                     # Language info
                     detected_lang = gr.Textbox(
                         label="Detected Language",
@@ -116,6 +124,42 @@ class MeetingAgentUI:
                         label="Enable Research",
                         value=True
                     )
+
+                    # Advanced Settings
+                    with gr.Accordion("🔑 API Keys & Advanced", open=False):
+                        gr.Markdown("**API Keys** (optional if set in .env)")
+
+                        deepseek_key = gr.Textbox(
+                            label="DeepSeek API Key",
+                            type="password",
+                            placeholder="sk-... (for Classic mode)",
+                            value=""
+                        )
+
+                        gemini_key = gr.Textbox(
+                            label="Gemini API Key",
+                            type="password",
+                            placeholder="AI... (for Live mode)",
+                            value=""
+                        )
+
+                        gr.Markdown("**Model Settings**")
+
+                        whisper_model = gr.Dropdown(
+                            choices=["tiny", "base", "small", "medium", "large-v3"],
+                            value="medium",
+                            label="Whisper Model (Classic)",
+                            info="Larger = better accuracy, more VRAM"
+                        )
+
+                        analysis_interval = gr.Slider(
+                            minimum=15,
+                            maximum=120,
+                            value=30,
+                            step=15,
+                            label="Analysis Interval (seconds)",
+                            info="How often to run AI analysis"
+                        )
 
                 with gr.Column(scale=2):
                     # Main display
@@ -175,16 +219,30 @@ class MeetingAgentUI:
                             )
 
             # Event handlers
-            def start_recording(target_lang_val, enable_research_val):
+            def start_recording(
+                mode_val, target_lang_val, enable_research_val,
+                deepseek_key_val, gemini_key_val, whisper_model_val, analysis_interval_val
+            ):
                 if self.on_start:
-                    # Pass settings to callback
+                    # Parse mode
+                    mode = "live" if "Gemini" in mode_val else "classic"
+
+                    # Pass all settings to callback
                     settings = {
+                        'mode': mode,
                         'target_lang': target_lang_val,
-                        'enable_research': enable_research_val
+                        'enable_research': enable_research_val,
+                        'deepseek_api_key': deepseek_key_val if deepseek_key_val.strip() else None,
+                        'gemini_api_key': gemini_key_val if gemini_key_val.strip() else None,
+                        'whisper_model': whisper_model_val,
+                        'analysis_interval': int(analysis_interval_val)
                     }
                     self.on_start(settings)
                 self.is_recording = True
-                return "🔴 Recording..."
+
+                mode_emoji = "⚡" if mode == "live" else "🔴"
+                mode_text = "Gemini Live" if mode == "live" else "Classic"
+                return f"{mode_emoji} Recording ({mode_text})..."
 
             def stop_recording():
                 if self.on_stop:
@@ -208,7 +266,10 @@ class MeetingAgentUI:
             # Button click events
             start_btn.click(
                 fn=start_recording,
-                inputs=[target_lang, enable_research],
+                inputs=[
+                    mode_selector, target_lang, enable_research,
+                    deepseek_key, gemini_key, whisper_model, analysis_interval
+                ],
                 outputs=status_text
             )
 
