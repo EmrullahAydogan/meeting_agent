@@ -59,11 +59,21 @@ class MeetingAgentUI:
 
                     # Settings
                     gr.Markdown("### Settings")
-                    target_lang = gr.Dropdown(
-                        choices=["Turkish", "English", "Auto"],
-                        value="Turkish",
-                        label="Target Language"
+
+                    # Language info
+                    detected_lang = gr.Textbox(
+                        label="Detected Language",
+                        value="Not detected yet",
+                        interactive=False
                     )
+
+                    target_lang = gr.Dropdown(
+                        choices=["Turkish", "English", "Auto (Same as source)"],
+                        value="Turkish",
+                        label="Translation Target",
+                        info="Language to translate to"
+                    )
+
                     enable_research = gr.Checkbox(
                         label="Enable Research",
                         value=True
@@ -127,9 +137,14 @@ class MeetingAgentUI:
                             )
 
             # Event handlers
-            def start_recording():
+            def start_recording(target_lang_val, enable_research_val):
                 if self.on_start:
-                    self.on_start()
+                    # Pass settings to callback
+                    settings = {
+                        'target_lang': target_lang_val,
+                        'enable_research': enable_research_val
+                    }
+                    self.on_start(settings)
                 self.is_recording = True
                 return "🔴 Recording..."
 
@@ -141,6 +156,7 @@ class MeetingAgentUI:
 
             start_btn.click(
                 fn=start_recording,
+                inputs=[target_lang, enable_research],
                 outputs=status_text
             )
 
@@ -157,7 +173,10 @@ class MeetingAgentUI:
                 'summary': summary_box,
                 'actions': actions_box,
                 'research': research_box,
-                'status': status_text
+                'status': status_text,
+                'detected_lang': detected_lang,
+                'target_lang': target_lang,
+                'enable_research': enable_research
             }
 
         self.app = app
@@ -172,6 +191,27 @@ class MeetingAgentUI:
         """Update translation display."""
         if self.app and 'translation' in self.components:
             return text
+
+    def update_detected_language(self, language: str):
+        """Update detected language display."""
+        lang_names = {
+            'en': 'English',
+            'tr': 'Turkish (Türkçe)',
+            'de': 'German',
+            'fr': 'French',
+            'es': 'Spanish',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'ru': 'Russian',
+            'zh': 'Chinese',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ar': 'Arabic'
+        }
+        display_name = lang_names.get(language, language.upper())
+        if self.app and 'detected_lang' in self.components:
+            return f"🗣️ {display_name}"
+        return display_name
 
     def update_analysis(self, topics: str, summary: str, actions: str):
         """Update analysis display."""

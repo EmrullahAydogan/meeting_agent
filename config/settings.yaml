@@ -19,9 +19,11 @@ whisper:
 # Translation Settings
 translation:
   model: "facebook/nllb-200-distilled-600M"  # or 1.3B, 3.3B
-  source_lang: "auto"  # auto-detect
-  target_lang: "tr"  # Default target
+  source_lang: "auto"  # auto-detect (always auto)
+  target_lang: "tur_Latn"  # Default target (NLLB format: tur_Latn for Turkish, eng_Latn for English)
   device: "cuda"
+  # Note: Target language can be changed in UI during runtime
+  # Supports bidirectional translation: TR↔EN, EN↔TR, and 200+ other languages
 
 # DeepSeek Settings
 deepseek:

@@ -73,6 +73,12 @@ class MeetingAgent:
         self.transcript_buffer = []
         self.current_language = None
 
+        # User settings (from UI)
+        self.user_settings = {
+            'target_lang': 'Turkish',  # Default
+            'enable_research': True
+        }
+
         # Processing queue
         self.processing_queue = queue.Queue()
 
@@ -164,15 +170,31 @@ class MeetingAgent:
                 'timestamp': time.time()
             })
 
-            # Translate if needed
+            # Translate based on user settings
             translation = ""
-            if self.translator and language != "tr":
+            target_lang_setting = self.user_settings.get('target_lang', 'Turkish')
+
+            # Map UI language names to codes
+            lang_map = {
+                'Turkish': 'tr',
+                'English': 'en',
+                'Auto (Same as source)': None
+            }
+            target_lang_code = lang_map.get(target_lang_setting, 'tr')
+
+            # Translate if target is different from source
+            if self.translator and target_lang_code and language != target_lang_code:
                 translation = self.translator.translate_from_whisper_lang(
                     text,
                     language,
-                    "tr"
+                    target_lang_code
                 )
-                logger.info(f"Translated: {translation[:100]}...")
+                direction = f"{language.upper()} → {target_lang_code.upper()}"
+                logger.info(f"Translated [{direction}]: {translation[:100]}...")
+            else:
+                # No translation needed (same language or Auto mode)
+                translation = text
+                logger.debug(f"Skipping translation: source={language}, target={target_lang_code}")
 
             # Queue for analysis
             self.processing_queue.put({
@@ -230,8 +252,9 @@ class MeetingAgent:
                                 item['language']
                             )
 
-                            # Research topics if enabled
-                            if self.researcher and topics:
+                            # Research topics if enabled by user
+                            research_enabled = self.user_settings.get('enable_research', True)
+                            if self.researcher and topics and research_enabled:
                                 queries = self.analyzer.generate_research_queries(
                                     topics[:3],  # Top 3 topics
                                     "en"
@@ -243,6 +266,8 @@ class MeetingAgent:
                                 )
 
                                 logger.info(f"Research completed for {len(queries)} queries")
+                            elif not research_enabled:
+                                logger.debug("Research disabled by user")
 
                             last_analysis_time = current_time
 
@@ -256,11 +281,22 @@ class MeetingAgent:
 
         logger.info("Processing worker stopped")
 
-    def start(self):
-        """Start the meeting agent."""
+    def start(self, settings=None):
+        """
+        Start the meeting agent.
+
+        Args:
+            settings: Optional dict with user settings from UI
+                     {'target_lang': str, 'enable_research': bool}
+        """
         if self.is_running:
             logger.warning("Already running")
             return
+
+        # Update settings if provided
+        if settings:
+            self.user_settings.update(settings)
+            logger.info(f"User settings: {self.user_settings}")
 
         logger.info("Starting Meeting Agent...")
 

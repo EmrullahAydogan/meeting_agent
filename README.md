@@ -7,7 +7,11 @@ Automatically transcribes, translates, analyzes, and researches topics discussed
 ## ✨ Features
 
 - **🎤 Real-time Transcription**: Speech-to-text using Faster-Whisper (GPU-accelerated)
-- **🌍 Live Translation**: Multilingual support with NLLB-200 (TR ↔ EN and 200+ languages)
+- **🌍 Bidirectional Translation**:
+  - **Turkish ↔ English** and 200+ languages
+  - Auto-detect source language
+  - Choose target language in UI (TR/EN/Auto)
+  - Works both ways: EN→TR or TR→EN
 - **🤖 AI Analysis**: Topic extraction, summarization, and action items via DeepSeek
 - **🔍 Smart Research**: Automatic web research on discussed topics
 - **👥 Speaker Diarization**: Identify who is speaking (optional)
@@ -123,16 +127,36 @@ The UI will open in your browser at `http://localhost:7860`
 ### Basic Workflow
 
 1. **Start Application**: Run `python main.py`
-2. **Configure Audio**: Set your system audio as input
-3. **Start Meeting**: Join your Google Meet/Zoom/Teams meeting
-4. **Click Start**: Begin recording in the UI
-5. **View Results**: See real-time transcription, translation, and analysis
-6. **Stop Recording**: Save transcript when done
+2. **Configure Settings**:
+   - **Translation Target**: Choose Turkish/English/Auto
+     - English meeting → Select "Turkish" to get Turkish translation
+     - Turkish meeting → Select "English" to get English translation
+     - Mixed languages → Select "Auto" to keep original
+   - **Enable Research**: Toggle web research on/off
+3. **Configure Audio**: Set your system audio as input
+4. **Start Meeting**: Join your Google Meet/Zoom/Teams meeting
+5. **Click Start**: Begin recording in the UI
+6. **View Results**: See real-time transcription, translation, and analysis
+7. **Stop Recording**: Save transcript when done
+
+### Translation Examples
+
+**Scenario 1: English meeting → Turkish translation**
+- Detected Language: 🗣️ English
+- Translation Target: Turkish
+- Original: "Hello, let's start the meeting"
+- Translation: "Merhaba, toplantıya başlayalım"
+
+**Scenario 2: Turkish meeting → English translation**
+- Detected Language: 🗣️ Turkish (Türkçe)
+- Translation Target: English
+- Original: "Merhaba, toplantıya başlayalım"
+- Translation: "Hello, let's start the meeting"
 
 ### UI Tabs
 
 - **Original**: Raw transcription in detected language
-- **Translation**: Translated text (configurable target language)
+- **Translation**: Translated text (target language from settings)
 - **Analysis**: Topics, summary, and action items
 - **Research**: Web research results on discussed topics
 
