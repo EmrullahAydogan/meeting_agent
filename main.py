@@ -1,0 +1,391 @@
+"""
+Meeting Agent - Main Application
+Real-time meeting transcription, translation, and research assistant.
+"""
+
+import os
+import sys
+import yaml
+import threading
+import queue
+from pathlib import Path
+from typing import Optional
+from loguru import logger
+from dotenv import load_dotenv
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from audio.capture import AudioCapture
+from transcription.whisper_engine import WhisperTranscriber
+from translation.nllb_translator import NLLBTranslator
+from ai.deepseek_client import DeepSeekAnalyzer
+from research.web_search import WebResearcher
+from ui.gradio_app import MeetingAgentUI
+
+
+class MeetingAgent:
+    """Main Meeting Agent application."""
+
+    def __init__(self, config_path: str = "config/settings.yaml"):
+        """
+        Initialize Meeting Agent.
+
+        Args:
+            config_path: Path to configuration file
+        """
+        # Load environment variables
+        load_dotenv()
+
+        # Load configuration
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        self.config = config
+
+        # Setup logging
+        log_level = config['logging']['level']
+        log_file = config['logging']['file']
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+        logger.remove()
+        logger.add(sys.stderr, level=log_level)
+        logger.add(log_file, level=log_level, rotation="10 MB")
+
+        logger.info("="*50)
+        logger.info("Meeting Agent Starting...")
+        logger.info("="*50)
+
+        # Create data directories
+        os.makedirs(config['storage']['transcripts_dir'], exist_ok=True)
+        os.makedirs(config['storage']['recordings_dir'], exist_ok=True)
+
+        # Initialize components
+        self.audio_capture = None
+        self.transcriber = None
+        self.translator = None
+        self.analyzer = None
+        self.researcher = None
+        self.ui = None
+
+        # State
+        self.is_running = False
+        self.transcript_buffer = []
+        self.current_language = None
+
+        # Processing queue
+        self.processing_queue = queue.Queue()
+
+        logger.info("Meeting Agent initialized")
+
+    def initialize_components(self):
+        """Initialize all components (lazy loading)."""
+
+        logger.info("Initializing components...")
+
+        # Audio capture
+        audio_config = self.config['audio']
+        self.audio_capture = AudioCapture(
+            sample_rate=audio_config['sample_rate'],
+            channels=audio_config['channels'],
+            chunk_duration=audio_config['chunk_duration'],
+            device=audio_config['device'],
+            callback=self._on_audio_chunk
+        )
+
+        # Whisper transcriber
+        whisper_config = self.config['whisper']
+        self.transcriber = WhisperTranscriber(
+            model_size=whisper_config['model_size'],
+            device=whisper_config['device'],
+            compute_type=whisper_config['compute_type'],
+            language=whisper_config['language'],
+            beam_size=whisper_config['beam_size'],
+            vad_filter=whisper_config['vad_filter']
+        )
+
+        # NLLB translator
+        translation_config = self.config['translation']
+        self.translator = NLLBTranslator(
+            model_name=translation_config['model'],
+            device=translation_config['device'],
+            target_lang=translation_config['target_lang']
+        )
+
+        # DeepSeek analyzer
+        deepseek_config = self.config['deepseek']
+        api_key = os.getenv('DEEPSEEK_API_KEY')
+        if api_key:
+            self.analyzer = DeepSeekAnalyzer(
+                api_key=api_key,
+                base_url=deepseek_config['base_url'],
+                model=deepseek_config['model'],
+                temperature=deepseek_config['temperature'],
+                max_tokens=deepseek_config['max_tokens']
+            )
+        else:
+            logger.warning("DEEPSEEK_API_KEY not found, AI analysis disabled")
+
+        # Web researcher
+        if self.config['research']['enabled']:
+            research_config = self.config['research']
+            self.researcher = WebResearcher(
+                max_results=research_config['max_results'],
+                timeout=research_config['timeout']
+            )
+
+        logger.info("All components initialized")
+
+    def _on_audio_chunk(self, audio_data, sample_rate):
+        """Callback for audio chunks."""
+        if not self.is_running:
+            return
+
+        logger.debug(f"Processing audio chunk: {len(audio_data)} samples")
+
+        try:
+            # Transcribe
+            text, language, segments = self.transcriber.transcribe(
+                audio_data,
+                sample_rate
+            )
+
+            if not text.strip():
+                logger.debug("Empty transcription, skipping")
+                return
+
+            self.current_language = language
+            logger.info(f"Transcribed [{language}]: {text[:100]}...")
+
+            # Add to buffer
+            self.transcript_buffer.append({
+                'text': text,
+                'language': language,
+                'timestamp': time.time()
+            })
+
+            # Translate if needed
+            translation = ""
+            if self.translator and language != "tr":
+                translation = self.translator.translate_from_whisper_lang(
+                    text,
+                    language,
+                    "tr"
+                )
+                logger.info(f"Translated: {translation[:100]}...")
+
+            # Queue for analysis
+            self.processing_queue.put({
+                'type': 'transcript',
+                'text': text,
+                'translation': translation,
+                'language': language
+            })
+
+        except Exception as e:
+            logger.error(f"Error processing audio chunk: {e}", exc_info=True)
+
+    def _processing_worker(self):
+        """Background worker for processing tasks."""
+        logger.info("Processing worker started")
+
+        accumulated_text = []
+        last_analysis_time = 0
+        analysis_interval = 30  # Analyze every 30 seconds
+
+        while self.is_running:
+            try:
+                # Get item from queue with timeout
+                item = self.processing_queue.get(timeout=1)
+
+                if item['type'] == 'transcript':
+                    accumulated_text.append(item['text'])
+
+                    # Check if it's time to analyze
+                    import time
+                    current_time = time.time()
+
+                    if current_time - last_analysis_time >= analysis_interval:
+                        if accumulated_text and self.analyzer:
+                            # Combine accumulated text
+                            full_text = " ".join(accumulated_text)
+
+                            logger.info("Performing AI analysis...")
+
+                            # Extract topics
+                            topics = self.analyzer.extract_topics(
+                                full_text,
+                                item['language']
+                            )
+
+                            # Generate summary
+                            summary = self.analyzer.summarize(
+                                full_text,
+                                item['language']
+                            )
+
+                            # Extract action items
+                            actions = self.analyzer.extract_action_items(
+                                full_text,
+                                item['language']
+                            )
+
+                            # Research topics if enabled
+                            if self.researcher and topics:
+                                queries = self.analyzer.generate_research_queries(
+                                    topics[:3],  # Top 3 topics
+                                    "en"
+                                )
+
+                                research_results = self.researcher.research_multiple(
+                                    queries,
+                                    fetch_content=False
+                                )
+
+                                logger.info(f"Research completed for {len(queries)} queries")
+
+                            last_analysis_time = current_time
+
+                            # Clear accumulated text
+                            accumulated_text = []
+
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Error in processing worker: {e}", exc_info=True)
+
+        logger.info("Processing worker stopped")
+
+    def start(self):
+        """Start the meeting agent."""
+        if self.is_running:
+            logger.warning("Already running")
+            return
+
+        logger.info("Starting Meeting Agent...")
+
+        # Initialize components if not already done
+        if not self.transcriber:
+            self.initialize_components()
+
+        self.is_running = True
+
+        # Start processing worker
+        self.worker_thread = threading.Thread(
+            target=self._processing_worker,
+            daemon=True
+        )
+        self.worker_thread.start()
+
+        # Start audio capture
+        self.audio_capture.start()
+
+        logger.info("Meeting Agent started")
+
+    def stop(self):
+        """Stop the meeting agent."""
+        if not self.is_running:
+            logger.warning("Not running")
+            return
+
+        logger.info("Stopping Meeting Agent...")
+
+        self.is_running = False
+
+        # Stop audio capture
+        if self.audio_capture:
+            self.audio_capture.stop()
+
+        # Wait for worker to finish
+        if hasattr(self, 'worker_thread'):
+            self.worker_thread.join(timeout=5)
+
+        logger.info("Meeting Agent stopped")
+
+    def save_transcript(self, filename: Optional[str] = None):
+        """Save transcript to file."""
+        if not self.transcript_buffer:
+            logger.warning("No transcript to save")
+            return
+
+        import time
+        from datetime import datetime
+
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"transcript_{timestamp}.txt"
+
+        filepath = Path(self.config['storage']['transcripts_dir']) / filename
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write("Meeting Transcript\n")
+            f.write("=" * 50 + "\n\n")
+
+            for item in self.transcript_buffer:
+                timestamp = datetime.fromtimestamp(item['timestamp'])
+                f.write(f"[{timestamp.strftime('%H:%M:%S')}] ({item['language']})\n")
+                f.write(f"{item['text']}\n\n")
+
+        logger.info(f"Transcript saved to {filepath}")
+        return str(filepath)
+
+    def run_ui(self):
+        """Run with Gradio UI."""
+        ui_config = self.config['ui']
+
+        self.ui = MeetingAgentUI(
+            on_start=self.start,
+            on_stop=self.stop,
+            port=ui_config['port'],
+            share=ui_config['share']
+        )
+
+        logger.info("Launching UI...")
+        self.ui.launch()
+
+
+def main():
+    """Main entry point."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Meeting Agent - Real-time meeting assistant")
+    parser.add_argument(
+        "--config",
+        default="config/settings.yaml",
+        help="Path to configuration file"
+    )
+    parser.add_argument(
+        "--no-ui",
+        action="store_true",
+        help="Run without UI (headless mode)"
+    )
+
+    args = parser.parse_args()
+
+    # Create agent
+    agent = MeetingAgent(config_path=args.config)
+
+    if args.no_ui:
+        # Headless mode
+        logger.info("Running in headless mode")
+        agent.initialize_components()
+        agent.start()
+
+        try:
+            import time
+            logger.info("Press Ctrl+C to stop")
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Interrupted by user")
+            agent.stop()
+            agent.save_transcript()
+    else:
+        # UI mode
+        agent.initialize_components()
+        agent.run_ui()
+
+
+if __name__ == "__main__":
+    import time  # Import at module level
+    main()
