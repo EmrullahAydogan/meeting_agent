@@ -25,6 +25,7 @@ pyannote.core>=5.0.0
 # AI/LLM
 openai>=1.0.0  # DeepSeek API uyumlu
 anthropic>=0.25.0  # Alternatif
+google-generativeai>=0.3.0  # Gemini Live
 httpx>=0.25.0
 
 # Web Research

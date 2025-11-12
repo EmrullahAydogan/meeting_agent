@@ -25,13 +25,25 @@ translation:
   # Note: Target language can be changed in UI during runtime
   # Supports bidirectional translation: TR↔EN, EN↔TR, and 200+ other languages
 
-# DeepSeek Settings
+# DeepSeek Settings (Classic Mode)
 deepseek:
-  api_key: ${DEEPSEEK_API_KEY}  # From environment
+  api_key: ${DEEPSEEK_API_KEY}  # From environment or UI
   base_url: "https://api.deepseek.com/v1"
   model: "deepseek-chat"  # deepseek-chat, deepseek-reasoner
   temperature: 0.7
   max_tokens: 2000
+
+# Gemini Live Settings (Live Mode)
+gemini:
+  api_key: ${GEMINI_API_KEY}  # From environment or UI
+  model: "gemini-2.0-flash-exp"  # gemini-2.0-flash-exp, gemini-1.5-pro
+  generation_config:
+    temperature: 0.7
+    top_p: 0.95
+    top_k: 40
+    max_output_tokens: 2048
+  # Gemini Live provides: STT + Translation + Analysis in one API call
+  # Much faster than Classic mode (Whisper + NLLB + DeepSeek pipeline)
 
 # Speaker Diarization
 diarization:
@@ -46,6 +58,12 @@ research:
   max_results: 3
   search_engine: "duckduckgo"  # duckduckgo, searxng
   timeout: 10
+
+# Processing Mode
+mode:
+  type: "classic"  # classic (Whisper+NLLB+DeepSeek) or live (Gemini Live)
+  # Classic: Full local control, customizable models, offline STT support
+  # Live: Ultra-fast, all-in-one API, lower latency (~200-500ms)
 
 # UI Settings
 ui:
