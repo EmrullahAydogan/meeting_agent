@@ -44,11 +44,14 @@ Gradio UI → Display Results
 
 ## 🎯 Two Processing Modes
 
-### Classic Mode (Whisper + DeepSeek)
+### Classic Mode (Whisper + AI Analyzer)
 - **Full control** over each component
 - **Offline STT** with Faster-Whisper
 - **GPU required** for good performance
-- Best for: Privacy, customization, offline use
+- **Choice of AI Analyzer:**
+  - 🤖 **Gemini** (recommended): Powerful, single API key for both modes
+  - 💰 **DeepSeek**: Ultra-cheap (~$0.27/1M tokens), fast responses
+- Best for: Privacy, customization, offline transcription
 
 ### Gemini Live Mode (Recommended for Windows/macOS)
 - **Ultra-fast** (200-500ms latency vs 3-5s)
@@ -161,18 +164,21 @@ nano .env
 ```
 
 **Get API Keys:**
-- DeepSeek (Classic mode): https://platform.deepseek.com/
-- Gemini (Live mode): https://makersuite.google.com/app/apikey
+- **Gemini** (recommended for both modes): https://makersuite.google.com/app/apikey
+- **DeepSeek** (optional, for Classic mode): https://platform.deepseek.com/
 
 ```env
-# For Classic Mode
-DEEPSEEK_API_KEY=your_deepseek_key_here
-
-# For Gemini Live Mode
+# Recommended: Gemini for all modes
 GEMINI_API_KEY=your_gemini_key_here
+
+# Optional: DeepSeek for Classic mode analysis
+DEEPSEEK_API_KEY=your_deepseek_key_here
 ```
 
-**Note**: API keys can also be entered directly in the UI under "Advanced Settings".
+**Note**:
+- API keys can also be entered directly in the UI under "Advanced Settings"
+- You can use **Gemini for everything** (both Classic and Live modes)
+- Or use **DeepSeek for Classic analysis** if you prefer ultra-cheap pricing
 
 #### 4. Configure Audio
 
@@ -197,6 +203,91 @@ pactl load-module module-loopback
 - Install [BlackHole](https://existential.audio/blackhole/)
 - Create Multi-Output Device in Audio MIDI Setup
 - Route meeting audio through BlackHole
+
+---
+
+### 🎙️ Understanding Audio Routing (Important!)
+
+Meeting Agent uses a **virtual microphone** to capture system audio without causing echo/feedback.
+
+#### How It Works:
+
+```
+┌─────────────────────────────────────────────┐
+│           YOUR COMPUTER                     │
+├─────────────────────────────────────────────┤
+│                                             │
+│  🎤 Real Microphone (Hardware)              │
+│     ↓                                       │
+│  Your voice → Video Conference              │
+│     ↓                                       │
+│  Other person hears you ✓                   │
+│                                             │
+│  ══════════════════════════════════════════ │
+│                                             │
+│  🔊 System Audio (Speaker Output)           │
+│     ↓                                       │
+│  Other person's voice                       │
+│     ↓                                       │
+│     ├─→ Real speakers (you hear)            │
+│     │                                       │
+│     └─→ 🎤 VIRTUAL Microphone (NEW!)        │
+│            ↓                                │
+│         Meeting Agent listens               │
+│         (Transcription + Translation)       │
+│            ↓                                │
+│         DEAD END (no echo!)                 │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+#### Platform-Specific Virtual Audio:
+
+| Platform | Virtual Device | Real Mic Affected? | Echo Risk? |
+|----------|---------------|-------------------|-----------|
+| **Linux** | PulseAudio `.monitor` | ❌ No (separate device) | ❌ No |
+| **Windows** | VB-Audio Cable | ❌ No (separate device) | ❌ No |
+| **macOS** | BlackHole | ❌ No (separate device) | ❌ No |
+
+#### ⚠️ Echo Prevention (Video Conferences):
+
+**Correct Setup:**
+```yaml
+Video Conference Settings:
+  Microphone: Real Hardware Mic (your voice)
+  Speakers: Virtual Device (or Multi-Output)
+
+Meeting Agent Settings:
+  Input Device: Virtual Microphone/Monitor
+
+Result: No echo! Virtual mic ONLY listens, never sends audio back.
+```
+
+**Wrong Setup (causes echo):**
+```yaml
+❌ Video Conference Microphone: Virtual Device
+   → This will send system audio back to other person!
+   → They will hear themselves (echo)
+```
+
+#### Use Cases:
+
+✅ **Video Conferences** (Google Meet, Zoom, Teams)
+- Use virtual microphone for Meeting Agent
+- Real microphone for speaking
+- No echo to other participants
+
+✅ **YouTube Live Streams / Podcasts**
+- No echo risk (you're not speaking)
+- Direct loopback works fine
+
+✅ **Movies / Videos / Music**
+- Transcribe subtitles, lyrics, dialogue
+- No echo concerns
+
+**Key Point:** Meeting Agent **only listens** via virtual device, never sends audio anywhere!
+
+---
 
 #### 5. Run Application
 

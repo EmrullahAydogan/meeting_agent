@@ -21,6 +21,7 @@ from audio.capture import AudioCapture
 from transcription.whisper_engine import WhisperTranscriber
 from translation.nllb_translator import NLLBTranslator
 from ai.deepseek_client import DeepSeekAnalyzer
+from ai.gemini_analyzer import GeminiAnalyzer
 from ai.gemini_live_client import GeminiLiveClient
 from research.web_search import WebResearcher
 from ui.gradio_app import MeetingAgentUI
@@ -83,6 +84,7 @@ class MeetingAgent:
         # User settings (from UI)
         self.user_settings = {
             'mode': 'classic',  # classic or live
+            'analyzer': 'gemini',  # deepseek or gemini (for classic mode)
             'target_lang': 'Turkish',  # Default
             'enable_research': True,
             'deepseek_api_key': None,
@@ -229,21 +231,41 @@ class MeetingAgent:
             target_lang=translation_config['target_lang']
         )
 
-        # DeepSeek analyzer
-        deepseek_config = self.config['deepseek']
-        api_key = self.user_settings.get('deepseek_api_key') or os.getenv('DEEPSEEK_API_KEY')
+        # AI Analyzer (DeepSeek or Gemini based on user choice)
+        analyzer_type = self.user_settings.get('analyzer', 'gemini')
 
-        if api_key:
-            self.analyzer = DeepSeekAnalyzer(
-                api_key=api_key,
-                base_url=deepseek_config['base_url'],
-                model=deepseek_config['model'],
-                temperature=deepseek_config['temperature'],
-                max_tokens=deepseek_config['max_tokens']
-            )
-            logger.info("DeepSeek analyzer initialized")
-        else:
-            logger.warning("DEEPSEEK_API_KEY not found, AI analysis disabled")
+        if analyzer_type == 'deepseek':
+            # DeepSeek analyzer
+            deepseek_config = self.config['deepseek']
+            api_key = self.user_settings.get('deepseek_api_key') or os.getenv('DEEPSEEK_API_KEY')
+
+            if api_key:
+                self.analyzer = DeepSeekAnalyzer(
+                    api_key=api_key,
+                    base_url=deepseek_config['base_url'],
+                    model=deepseek_config['model'],
+                    temperature=deepseek_config['temperature'],
+                    max_tokens=deepseek_config['max_tokens']
+                )
+                logger.info("DeepSeek analyzer initialized")
+            else:
+                logger.warning("DEEPSEEK_API_KEY not found, AI analysis disabled")
+
+        else:  # gemini
+            # Gemini analyzer (for Classic mode analysis)
+            gemini_config = self.config.get('gemini_analyzer', self.config['gemini'])
+            api_key = self.user_settings.get('gemini_api_key') or os.getenv('GEMINI_API_KEY')
+
+            if api_key:
+                self.analyzer = GeminiAnalyzer(
+                    api_key=api_key,
+                    model=gemini_config.get('analyzer_model', 'gemini-1.5-flash'),
+                    temperature=gemini_config.get('temperature', 0.7),
+                    max_tokens=gemini_config.get('max_output_tokens', 2048)
+                )
+                logger.info("Gemini analyzer initialized (for Classic mode)")
+            else:
+                logger.warning("GEMINI_API_KEY not found, AI analysis disabled")
 
     def _initialize_live_mode(self):
         """Initialize Live mode components (Gemini Live only)."""

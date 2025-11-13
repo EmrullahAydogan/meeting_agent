@@ -100,10 +100,18 @@ class MeetingAgentUI:
 
                     # Mode Selection
                     mode_selector = gr.Radio(
-                        choices=["Classic (Whisper + DeepSeek)", "Gemini Live (Ultra Fast)"],
-                        value="Classic (Whisper + DeepSeek)",
+                        choices=["Classic (Whisper + AI)", "Gemini Live (Ultra Fast)"],
+                        value="Classic (Whisper + AI)",
                         label="🔧 Processing Mode",
                         info="Classic: Full control, offline STT | Live: Ultra-fast, all-in-one"
+                    )
+
+                    # Analyzer Selection (for Classic mode)
+                    analyzer_selector = gr.Radio(
+                        choices=["DeepSeek", "Gemini"],
+                        value="Gemini",
+                        label="🤖 AI Analyzer (Classic Mode)",
+                        info="DeepSeek: Cheap & fast | Gemini: Google's powerful models"
                     )
 
                     # Language info
@@ -220,7 +228,7 @@ class MeetingAgentUI:
 
             # Event handlers
             def start_recording(
-                mode_val, target_lang_val, enable_research_val,
+                mode_val, analyzer_val, target_lang_val, enable_research_val,
                 deepseek_key_val, gemini_key_val, whisper_model_val, analysis_interval_val
             ):
                 if self.on_start:
@@ -230,6 +238,7 @@ class MeetingAgentUI:
                     # Pass all settings to callback
                     settings = {
                         'mode': mode,
+                        'analyzer': analyzer_val.lower(),  # 'deepseek' or 'gemini'
                         'target_lang': target_lang_val,
                         'enable_research': enable_research_val,
                         'deepseek_api_key': deepseek_key_val if deepseek_key_val.strip() else None,
@@ -241,7 +250,7 @@ class MeetingAgentUI:
                 self.is_recording = True
 
                 mode_emoji = "⚡" if mode == "live" else "🔴"
-                mode_text = "Gemini Live" if mode == "live" else "Classic"
+                mode_text = "Gemini Live" if mode == "live" else f"Classic ({analyzer_val})"
                 return f"{mode_emoji} Recording ({mode_text})..."
 
             def stop_recording():
@@ -267,7 +276,7 @@ class MeetingAgentUI:
             start_btn.click(
                 fn=start_recording,
                 inputs=[
-                    mode_selector, target_lang, enable_research,
+                    mode_selector, analyzer_selector, target_lang, enable_research,
                     deepseek_key, gemini_key, whisper_model, analysis_interval
                 ],
                 outputs=status_text
