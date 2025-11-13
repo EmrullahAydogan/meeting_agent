@@ -86,7 +86,7 @@ Choose your platform for automated setup:
 
 ```powershell
 # Clone repository
-git clone <repository-url>
+git clone https://github.com/EmrullahAydogan/meeting_agent
 cd meeting_agent
 
 # Run automated setup script (Gemini Live mode)
@@ -104,7 +104,7 @@ powershell -ExecutionPolicy Bypass -File setup_windows.ps1 -FullInstall
 
 ```bash
 # Clone repository
-git clone <repository-url>
+git clone https://github.com/EmrullahAydogan/meeting_agent
 cd meeting_agent
 
 # Run automated setup script
@@ -125,7 +125,7 @@ The script will guide you through two installation options:
 #### 1. Clone Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/EmrullahAydogan/meeting_agent
 cd meeting_agent
 ```
 
