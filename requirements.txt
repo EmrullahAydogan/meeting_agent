@@ -1,0 +1,51 @@
+# Core Dependencies
+numpy>=1.24.0
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Audio Processing
+sounddevice>=0.4.6
+pyaudio>=0.2.13
+pydub>=0.25.1
+webrtcvad>=2.0.10
+
+# Speech-to-Text
+faster-whisper>=0.10.0
+openai-whisper>=20231117
+
+# Translation
+transformers>=4.35.0
+sentencepiece>=0.1.99
+sacremoses>=0.1.1
+
+# Speaker Diarization
+pyannote.audio>=3.1.0
+pyannote.core>=5.0.0
+
+# AI/LLM
+openai>=1.0.0  # DeepSeek API uyumlu
+anthropic>=0.25.0  # Alternatif
+google-generativeai>=0.3.0  # Gemini Live
+httpx>=0.25.0
+
+# Web Research
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+playwright>=1.40.0
+trafilatura>=1.6.0
+duckduckgo-search>=4.0.0
+
+# UI
+gradio>=4.0.0
+streamlit>=1.28.0  # Alternatif
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+loguru>=0.7.2
+tqdm>=4.66.0
+python-dateutil>=2.8.2
+
+# Optional: Performance
+accelerate>=0.24.0
+bitsandbytes>=0.41.0

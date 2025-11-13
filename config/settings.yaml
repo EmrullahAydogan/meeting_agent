@@ -1,0 +1,85 @@
+# Meeting Agent Configuration
+
+# Audio Settings
+audio:
+  sample_rate: 16000
+  channels: 1
+  chunk_duration: 30  # seconds
+  device: null  # null for default, or specify device index
+
+# Whisper Settings
+whisper:
+  model_size: "medium"  # tiny, base, small, medium, large-v3
+  device: "cuda"  # cuda, cpu
+  compute_type: "float16"  # float16, int8, float32
+  language: null  # null for auto-detect, or "tr", "en"
+  beam_size: 5
+  vad_filter: true
+
+# Translation Settings
+translation:
+  model: "facebook/nllb-200-distilled-600M"  # or 1.3B, 3.3B
+  source_lang: "auto"  # auto-detect (always auto)
+  target_lang: "tur_Latn"  # Default target (NLLB format: tur_Latn for Turkish, eng_Latn for English)
+  device: "cuda"
+  # Note: Target language can be changed in UI during runtime
+  # Supports bidirectional translation: TR↔EN, EN↔TR, and 200+ other languages
+
+# DeepSeek Settings (Classic Mode)
+deepseek:
+  api_key: ${DEEPSEEK_API_KEY}  # From environment or UI
+  base_url: "https://api.deepseek.com/v1"
+  model: "deepseek-chat"  # deepseek-chat, deepseek-reasoner
+  temperature: 0.7
+  max_tokens: 2000
+
+# Gemini Live Settings (Live Mode)
+gemini:
+  api_key: ${GEMINI_API_KEY}  # From environment or UI
+  model: "gemini-2.0-flash-exp"  # gemini-2.0-flash-exp, gemini-1.5-pro
+  generation_config:
+    temperature: 0.7
+    top_p: 0.95
+    top_k: 40
+    max_output_tokens: 2048
+  # Gemini Live provides: STT + Translation + Analysis in one API call
+  # Much faster than Classic mode (Whisper + NLLB + DeepSeek pipeline)
+
+# Speaker Diarization
+diarization:
+  enabled: true
+  min_speakers: 1
+  max_speakers: 10
+  device: "cuda"
+
+# Research Settings
+research:
+  enabled: true
+  max_results: 3
+  search_engine: "duckduckgo"  # duckduckgo, searxng
+  timeout: 10
+
+# Processing Mode
+mode:
+  type: "classic"  # classic (Whisper+NLLB+DeepSeek) or live (Gemini Live)
+  # Classic: Full local control, customizable models, offline STT support
+  # Live: Ultra-fast, all-in-one API, lower latency (~200-500ms)
+
+# UI Settings
+ui:
+  framework: "gradio"  # gradio, streamlit
+  port: 7860
+  share: false
+  theme: "soft"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/meeting_agent.log"
+
+# Storage
+storage:
+  transcripts_dir: "data/transcripts"
+  recordings_dir: "data/recordings"
+  save_audio: false
+  save_transcripts: true
