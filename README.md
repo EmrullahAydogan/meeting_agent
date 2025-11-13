@@ -630,12 +630,48 @@ Built with:
 - [Gradio](https://gradio.app/)
 - [PyAnnote](https://github.com/pyannote/pyannote-audio)
 
+## 🐛 Troubleshooting
+
+Having issues? Check our comprehensive troubleshooting guide:
+
+**📖 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
+
+### Common Issues Quick Links:
+
+- **[PyAudio compilation error](TROUBLESHOOTING.md#pyaudio-compilation-error)** (`portaudio.h not found`)
+- **[PyTorch/Transformers compatibility](TROUBLESHOOTING.md#pytorchtransformers-compatibility)** (CVE-2025-32434)
+- **[CUDA not detected](TROUBLESHOOTING.md#cuda-not-detected)**
+- **[Audio not capturing](TROUBLESHOOTING.md#audio-not-capturing)**
+- **[Out of memory errors](TROUBLESHOOTING.md#out-of-memory)**
+
+### Quick Fixes:
+
+**Linux - Audio Issues:**
+```bash
+sudo apt-get install -y portaudio19-dev python3-dev build-essential
+```
+
+**PyTorch/Transformers Error:**
+```bash
+# Option 1: Use Gemini Live mode (no PyTorch needed)
+# Option 2: Downgrade Transformers
+pip install transformers==4.47.0
+```
+
+**Check Logs:**
+```bash
+cat logs/meeting_agent.log | tail -50
+```
+
+---
+
 ## 📧 Support
 
 For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Check logs in `logs/meeting_agent.log`
-- Review configuration in `config/settings.yaml`
+- **First**: Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Then**: Open an issue on [GitHub Issues](https://github.com/EmrullahAydogan/meeting_agent/issues)
+- **Logs**: Check `logs/meeting_agent.log` for error details
+- **Config**: Review `config/settings.yaml` for settings
 
 ---
 

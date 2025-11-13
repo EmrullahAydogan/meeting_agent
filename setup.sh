@@ -53,6 +53,7 @@ check_python() {
 check_audio() {
     print_info "Checking audio system..."
 
+    # Check PulseAudio
     if command -v pulseaudio &> /dev/null; then
         print_success "PulseAudio detected"
     elif command -v pactl &> /dev/null; then
@@ -60,6 +61,25 @@ check_audio() {
     else
         print_warning "PulseAudio not found"
         echo "To install: sudo apt-get install pulseaudio pavucontrol"
+    fi
+
+    # Check PortAudio development headers (required for PyAudio)
+    if dpkg -l | grep -q portaudio19-dev; then
+        print_success "PortAudio dev headers detected"
+    else
+        print_warning "PortAudio development headers not found"
+        echo ""
+        print_info "PyAudio requires portaudio19-dev to compile"
+        read -p "Install required audio packages now? (y/n): " install_audio
+        if [[ $install_audio =~ ^[Yy]$ ]]; then
+            echo "Installing audio development packages..."
+            sudo apt-get update
+            sudo apt-get install -y portaudio19-dev python3-dev build-essential
+            print_success "Audio packages installed"
+        else
+            print_warning "Skipping audio package installation"
+            print_warning "PyAudio installation may fail later!"
+        fi
     fi
 }
 

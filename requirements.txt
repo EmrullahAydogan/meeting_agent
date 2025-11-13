@@ -14,6 +14,11 @@ faster-whisper>=0.10.0
 openai-whisper>=20231117
 
 # Translation
+# NOTE: If you encounter PyTorch/Transformers compatibility error (CVE-2025-32434),
+# see TROUBLESHOOTING.md for solutions. Options:
+#   1. Use Gemini Live mode (no PyTorch needed)
+#   2. Downgrade: transformers==4.47.0 (temporary fix)
+#   3. Manual patch (see TROUBLESHOOTING.md)
 transformers>=4.35.0
 sentencepiece>=0.1.99
 sacremoses>=0.1.1
