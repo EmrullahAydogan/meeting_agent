@@ -9,6 +9,7 @@ from typing import Optional, Callable, Dict, Any
 from loguru import logger
 import time
 import threading
+from src.audio.device_monitor import AudioDeviceMonitor
 
 
 class MeetingAgentUI:
@@ -38,6 +39,11 @@ class MeetingAgentUI:
         self.is_recording = False
         self.app = None
 
+        # Audio device monitoring
+        self.audio_monitor = None
+        self.current_device = None
+        self.device_list = []
+
         # Shared state for real-time updates
         self.shared_state = {
             'transcript': '',
@@ -47,6 +53,7 @@ class MeetingAgentUI:
             'summary': '',
             'actions': '',
             'research': '<p>Research results will appear here...</p>',
+            'audio_level': 0.0,
             'last_update': time.time()
         }
 
@@ -189,6 +196,41 @@ class MeetingAgentUI:
                             gr.Markdown("### Configuration Center")
                             gr.Markdown("*Configure all settings here - No .env file needed!*")
 
+                            # Audio Device Section
+                            gr.Markdown("---")
+                            gr.Markdown("## 🎤 Audio Input Device")
+
+                            with gr.Row():
+                                audio_device_dropdown = gr.Dropdown(
+                                    choices=[],
+                                    value=None,
+                                    label="Select Audio Device",
+                                    info="Choose the audio input source (e.g., microphone, virtual audio cable)",
+                                    interactive=True,
+                                    scale=3
+                                )
+                                refresh_devices_btn = gr.Button(
+                                    "🔄 Refresh",
+                                    variant="secondary",
+                                    size="sm",
+                                    scale=1
+                                )
+
+                            audio_level_display = gr.Slider(
+                                minimum=0,
+                                maximum=100,
+                                value=0,
+                                label="Live Audio Level",
+                                info="Real-time audio level from selected device (speak to test)",
+                                interactive=False
+                            )
+
+                            test_audio_btn = gr.Button(
+                                "🎧 Test Selected Device",
+                                variant="secondary",
+                                size="sm"
+                            )
+
                             # Processing Mode Section
                             gr.Markdown("---")
                             gr.Markdown("## 🔧 Processing Mode")
@@ -292,10 +334,69 @@ class MeetingAgentUI:
                                 lines=1
                             )
 
+            # Audio Device Event Handlers
+            def load_audio_devices():
+                """Load available audio devices."""
+                try:
+                    devices = AudioDeviceMonitor.list_input_devices()
+                    self.device_list = devices
+
+                    if not devices:
+                        return gr.update(choices=["No devices found"], value=None)
+
+                    # Format choices: "Device Name (Index)"
+                    choices = [f"{dev['name']} (Index: {dev['index']})" for dev in devices]
+
+                    # Set default to first device
+                    default_value = choices[0] if choices else None
+
+                    return gr.update(choices=choices, value=default_value)
+                except Exception as e:
+                    logger.error(f"Error loading audio devices: {e}")
+                    return gr.update(choices=[f"Error: {str(e)}"], value=None)
+
+            def start_device_test(device_choice):
+                """Start monitoring selected device."""
+                # Stop any existing monitor
+                if self.audio_monitor:
+                    try:
+                        self.audio_monitor.stop()
+                    except:
+                        pass
+                    self.audio_monitor = None
+
+                if not device_choice or "No devices" in device_choice or "Error" in device_choice:
+                    return
+
+                try:
+                    # Extract device index from choice string
+                    # Format: "Device Name (Index: 0)"
+                    import re
+                    match = re.search(r'Index: (\d+)', device_choice)
+                    if match:
+                        device_idx = int(match.group(1))
+                        self.current_device = device_idx
+
+                        # Start monitoring
+                        self.audio_monitor = AudioDeviceMonitor(device=device_idx)
+                        self.audio_monitor.start()
+
+                        logger.info(f"Started monitoring device {device_idx}")
+                except Exception as e:
+                    logger.error(f"Error starting device test: {e}")
+
+            def get_audio_level():
+                """Get current audio level from monitor."""
+                if self.audio_monitor and self.audio_monitor.is_monitoring:
+                    level = self.audio_monitor.get_level()
+                    return gr.update(value=level)
+                return gr.update(value=0)
+
             # Event Handlers
             def start_recording(
                 mode_val, analyzer_val, target_lang_val, enable_research_val,
-                gemini_key_val, deepseek_key_val, whisper_model_val, analysis_interval_val
+                gemini_key_val, deepseek_key_val, whisper_model_val, analysis_interval_val,
+                device_choice
             ):
                 """Handle start recording button click."""
                 if self.on_start:
@@ -312,6 +413,14 @@ class MeetingAgentUI:
                         if analyzer_val == "DeepSeek" and not deepseek_key_val.strip():
                             return "❌ Error: DeepSeek API key required for DeepSeek analyzer! Go to Settings tab."
 
+                    # Extract audio device index
+                    device_idx = None
+                    if device_choice and "Index:" in device_choice:
+                        import re
+                        match = re.search(r'Index: (\d+)', device_choice)
+                        if match:
+                            device_idx = int(match.group(1))
+
                     # Pass all settings to callback
                     settings = {
                         'mode': mode,
@@ -321,7 +430,8 @@ class MeetingAgentUI:
                         'deepseek_api_key': deepseek_key_val.strip() if deepseek_key_val else None,
                         'gemini_api_key': gemini_key_val.strip() if gemini_key_val else None,
                         'whisper_model': whisper_model_val,
-                        'analysis_interval': int(analysis_interval_val)
+                        'analysis_interval': int(analysis_interval_val),
+                        'audio_device': device_idx  # Add selected audio device
                     }
 
                     try:
@@ -383,11 +493,36 @@ class MeetingAgentUI:
                 )
 
             # Wire up event handlers
+
+            # Audio device handlers
+            app.load(
+                fn=load_audio_devices,
+                outputs=audio_device_dropdown
+            )
+
+            refresh_devices_btn.click(
+                fn=load_audio_devices,
+                outputs=audio_device_dropdown
+            )
+
+            test_audio_btn.click(
+                fn=start_device_test,
+                inputs=audio_device_dropdown
+            )
+
+            # Audio level timer - update every 0.1 seconds
+            audio_level_timer = gr.Timer(value=0.1, active=True)
+            audio_level_timer.tick(
+                fn=get_audio_level,
+                outputs=audio_level_display
+            )
+
             start_btn.click(
                 fn=start_recording,
                 inputs=[
                     mode_selector, analyzer_selector, target_lang, enable_research,
-                    gemini_key, deepseek_key, whisper_model, analysis_interval
+                    gemini_key, deepseek_key, whisper_model, analysis_interval,
+                    audio_device_dropdown
                 ],
                 outputs=status_text
             )
@@ -432,7 +567,9 @@ class MeetingAgentUI:
                 'status': status_text,
                 'detected_lang': detected_lang,
                 'target_lang': target_lang,
-                'enable_research': enable_research
+                'enable_research': enable_research,
+                'audio_device': audio_device_dropdown,
+                'audio_level': audio_level_display
             }
 
         self.app = app
@@ -566,6 +703,7 @@ class MeetingAgentUI:
                 'summary': '',
                 'actions': '',
                 'research': '<p>Research results will appear here...</p>',
+                'audio_level': 0.0,
                 'last_update': time.time()
             }
 

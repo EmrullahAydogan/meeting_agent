@@ -180,13 +180,19 @@ class MeetingAgent:
 
         # Audio capture (always needed)
         audio_config = self.config['audio']
+
+        # Use device from user settings if provided, otherwise use config default
+        audio_device = self.user_settings.get('audio_device', audio_config['device'])
+
         self.audio_capture = AudioCapture(
             sample_rate=audio_config['sample_rate'],
             channels=audio_config['channels'],
             chunk_duration=audio_config['chunk_duration'],
-            device=audio_config['device'],
+            device=audio_device,
             callback=self._on_audio_chunk
         )
+
+        logger.info(f"Audio device: {audio_device if audio_device is not None else 'default'}")
 
         if mode == "classic":
             # Classic Mode: Whisper + NLLB + DeepSeek
