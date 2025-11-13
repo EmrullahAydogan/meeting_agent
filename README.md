@@ -44,11 +44,14 @@ Gradio UI → Display Results
 
 ## 🎯 Two Processing Modes
 
-### Classic Mode (Whisper + DeepSeek)
+### Classic Mode (Whisper + AI Analyzer)
 - **Full control** over each component
 - **Offline STT** with Faster-Whisper
 - **GPU required** for good performance
-- Best for: Privacy, customization, offline use
+- **Choice of AI Analyzer:**
+  - 🤖 **Gemini** (recommended): Powerful, single API key for both modes
+  - 💰 **DeepSeek**: Ultra-cheap (~$0.27/1M tokens), fast responses
+- Best for: Privacy, customization, offline transcription
 
 ### Gemini Live Mode (Recommended for Windows/macOS)
 - **Ultra-fast** (200-500ms latency vs 3-5s)
@@ -77,11 +80,13 @@ Gradio UI → Display Results
 
 ## 🚀 Quick Start
 
-### Windows Users - Automated Setup ⚡
+Choose your platform for automated setup:
+
+### Windows - Automated Setup ⚡
 
 ```powershell
 # Clone repository
-git clone <repository-url>
+git clone https://github.com/EmrullahAydogan/meeting_agent
 cd meeting_agent
 
 # Run automated setup script (Gemini Live mode)
@@ -95,12 +100,32 @@ powershell -ExecutionPolicy Bypass -File setup_windows.ps1 -FullInstall
 
 ---
 
+### Linux - Automated Setup ⚡
+
+```bash
+# Clone repository
+git clone https://github.com/EmrullahAydogan/meeting_agent
+cd meeting_agent
+
+# Run automated setup script
+chmod +x setup.sh
+./setup.sh
+```
+
+The script will guide you through two installation options:
+- **Option 1**: Quick Setup (Gemini Live) - 2 minutes, no GPU required
+- **Option 2**: Full Setup (Classic Mode) - 10 minutes, GPU recommended
+
+**For detailed setup guide**, see manual instructions below.
+
+---
+
 ### Linux/macOS - Manual Setup
 
 #### 1. Clone Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/EmrullahAydogan/meeting_agent
 cd meeting_agent
 ```
 
@@ -128,7 +153,11 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install -r requirements.txt
 ```
 
-#### 3. Configure Environment
+#### 3. Configure Environment (Optional - Can be done via UI!)
+
+**You can skip this step and configure everything through the web UI!**
+
+But if you prefer using `.env` file:
 
 ```bash
 # Copy example environment file
@@ -139,18 +168,21 @@ nano .env
 ```
 
 **Get API Keys:**
-- DeepSeek (Classic mode): https://platform.deepseek.com/
-- Gemini (Live mode): https://makersuite.google.com/app/apikey
+- **Gemini** (recommended for both modes): https://makersuite.google.com/app/apikey
+- **DeepSeek** (optional, for Classic mode): https://platform.deepseek.com/
 
 ```env
-# For Classic Mode
-DEEPSEEK_API_KEY=your_deepseek_key_here
-
-# For Gemini Live Mode
+# Recommended: Gemini for all modes
 GEMINI_API_KEY=your_gemini_key_here
+
+# Optional: DeepSeek for Classic mode analysis
+DEEPSEEK_API_KEY=your_deepseek_key_here
 ```
 
-**Note**: API keys can also be entered directly in the UI under "Advanced Settings".
+**💡 Recommended Approach:**
+- **Don't create .env file** - use the web UI ⚙️ Settings tab instead!
+- The UI provides a user-friendly interface for all configuration
+- API keys entered in UI take priority over .env file
 
 #### 4. Configure Audio
 
@@ -176,6 +208,91 @@ pactl load-module module-loopback
 - Create Multi-Output Device in Audio MIDI Setup
 - Route meeting audio through BlackHole
 
+---
+
+### 🎙️ Understanding Audio Routing (Important!)
+
+Meeting Agent uses a **virtual microphone** to capture system audio without causing echo/feedback.
+
+#### How It Works:
+
+```
+┌─────────────────────────────────────────────┐
+│           YOUR COMPUTER                     │
+├─────────────────────────────────────────────┤
+│                                             │
+│  🎤 Real Microphone (Hardware)              │
+│     ↓                                       │
+│  Your voice → Video Conference              │
+│     ↓                                       │
+│  Other person hears you ✓                   │
+│                                             │
+│  ══════════════════════════════════════════ │
+│                                             │
+│  🔊 System Audio (Speaker Output)           │
+│     ↓                                       │
+│  Other person's voice                       │
+│     ↓                                       │
+│     ├─→ Real speakers (you hear)            │
+│     │                                       │
+│     └─→ 🎤 VIRTUAL Microphone (NEW!)        │
+│            ↓                                │
+│         Meeting Agent listens               │
+│         (Transcription + Translation)       │
+│            ↓                                │
+│         DEAD END (no echo!)                 │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+#### Platform-Specific Virtual Audio:
+
+| Platform | Virtual Device | Real Mic Affected? | Echo Risk? |
+|----------|---------------|-------------------|-----------|
+| **Linux** | PulseAudio `.monitor` | ❌ No (separate device) | ❌ No |
+| **Windows** | VB-Audio Cable | ❌ No (separate device) | ❌ No |
+| **macOS** | BlackHole | ❌ No (separate device) | ❌ No |
+
+#### ⚠️ Echo Prevention (Video Conferences):
+
+**Correct Setup:**
+```yaml
+Video Conference Settings:
+  Microphone: Real Hardware Mic (your voice)
+  Speakers: Virtual Device (or Multi-Output)
+
+Meeting Agent Settings:
+  Input Device: Virtual Microphone/Monitor
+
+Result: No echo! Virtual mic ONLY listens, never sends audio back.
+```
+
+**Wrong Setup (causes echo):**
+```yaml
+❌ Video Conference Microphone: Virtual Device
+   → This will send system audio back to other person!
+   → They will hear themselves (echo)
+```
+
+#### Use Cases:
+
+✅ **Video Conferences** (Google Meet, Zoom, Teams)
+- Use virtual microphone for Meeting Agent
+- Real microphone for speaking
+- No echo to other participants
+
+✅ **YouTube Live Streams / Podcasts**
+- No echo risk (you're not speaking)
+- Direct loopback works fine
+
+✅ **Movies / Videos / Music**
+- Transcribe subtitles, lyrics, dialogue
+- No echo concerns
+
+**Key Point:** Meeting Agent **only listens** via virtual device, never sends audio anywhere!
+
+---
+
 #### 5. Run Application
 
 ```bash
@@ -191,18 +308,88 @@ python main.py --config my_config.yaml
 
 The UI will open in your browser at `http://localhost:7860`
 
+---
+
 ## 📖 Usage
 
-### Basic Workflow
+### Quick Start (UI-First Approach - No .env Needed!)
+
+**Meeting Agent uses a web UI for all configuration** - No need to edit config files!
+
+1. **Launch the Application**:
+   ```bash
+   python main.py
+   ```
+   The web interface will open automatically at `http://localhost:7860`
+
+2. **Go to ⚙️ Settings Tab**:
+   - **Enter API Keys** (required):
+     - Gemini API Key: Get from [makersuite.google.com](https://makersuite.google.com/app/apikey)
+     - DeepSeek API Key (optional): Get from [platform.deepseek.com](https://platform.deepseek.com/)
+
+   - **Choose Processing Mode**:
+     - **Classic (Whisper + AI)**: Full control, offline STT, GPU recommended
+     - **Gemini Live (Ultra Fast)**: 200-500ms latency, no GPU required
+
+   - **Select AI Analyzer** (for Classic mode):
+     - **Gemini**: Single API key, powerful models
+     - **DeepSeek**: Ultra-cheap (~$0.27/1M tokens)
+
+   - **Configure Translation**:
+     - Target language: Turkish / English / Auto
+
+   - **Model Settings**:
+     - Whisper model size (Classic mode only)
+     - Analysis interval (how often to run AI analysis)
+
+   - **Enable/Disable Features**:
+     - Web research toggle
+
+   - Click **💾 Save Settings**
+
+3. **Return to 📺 Live View Tab**
+
+4. **Click ▶️ Start Recording**
+
+5. **View Real-time Results**:
+   - **📝 Original**: Live transcription in source language
+   - **🌍 Translation**: Real-time translation to target language
+   - **🤖 Analysis**: AI-extracted topics, summary, action items
+   - **🔍 Research**: Web research on discussed topics
+
+6. **Click ⏹️ Stop Recording** when done
+
+**That's it!** All settings are managed through the web UI - no configuration files needed!
+
+### Optional: Using .env File
+
+If you prefer, you can set API keys via `.env` file instead of UI:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Add your keys:
+```env
+GEMINI_API_KEY=your_key_here
+DEEPSEEK_API_KEY=your_key_here  # optional
+```
+
+The UI will automatically detect and use these keys if present.
+
+---
+
+### Basic Workflow (Legacy)
 
 1. **Start Application**: Run `python main.py`
-2. **Configure Settings**:
+2. **Configure Settings** (in UI ⚙️ Settings tab):
    - **Translation Target**: Choose Turkish/English/Auto
      - English meeting → Select "Turkish" to get Turkish translation
      - Turkish meeting → Select "English" to get English translation
      - Mixed languages → Select "Auto" to keep original
    - **Enable Research**: Toggle web research on/off
-3. **Configure Audio**: Set your system audio as input
+3. **Configure Audio**: Set your system audio as input (see Audio Routing section)
 4. **Start Meeting**: Join your Google Meet/Zoom/Teams meeting
 5. **Click Start**: Begin recording in the UI
 6. **View Results**: See real-time transcription, translation, and analysis
