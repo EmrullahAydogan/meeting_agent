@@ -77,7 +77,9 @@ Gradio UI → Display Results
 
 ## 🚀 Quick Start
 
-### Windows Users - Automated Setup ⚡
+Choose your platform for automated setup:
+
+### Windows - Automated Setup ⚡
 
 ```powershell
 # Clone repository
@@ -92,6 +94,26 @@ powershell -ExecutionPolicy Bypass -File setup_windows.ps1 -FullInstall
 ```
 
 **For detailed Windows setup guide**, see: [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md)
+
+---
+
+### Linux - Automated Setup ⚡
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd meeting_agent
+
+# Run automated setup script
+chmod +x setup.sh
+./setup.sh
+```
+
+The script will guide you through two installation options:
+- **Option 1**: Quick Setup (Gemini Live) - 2 minutes, no GPU required
+- **Option 2**: Full Setup (Classic Mode) - 10 minutes, GPU recommended
+
+**For detailed setup guide**, see manual instructions below.
 
 ---
 
