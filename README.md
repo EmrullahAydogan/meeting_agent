@@ -153,7 +153,11 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install -r requirements.txt
 ```
 
-#### 3. Configure Environment
+#### 3. Configure Environment (Optional - Can be done via UI!)
+
+**You can skip this step and configure everything through the web UI!**
+
+But if you prefer using `.env` file:
 
 ```bash
 # Copy example environment file
@@ -175,10 +179,10 @@ GEMINI_API_KEY=your_gemini_key_here
 DEEPSEEK_API_KEY=your_deepseek_key_here
 ```
 
-**Note**:
-- API keys can also be entered directly in the UI under "Advanced Settings"
-- You can use **Gemini for everything** (both Classic and Live modes)
-- Or use **DeepSeek for Classic analysis** if you prefer ultra-cheap pricing
+**💡 Recommended Approach:**
+- **Don't create .env file** - use the web UI ⚙️ Settings tab instead!
+- The UI provides a user-friendly interface for all configuration
+- API keys entered in UI take priority over .env file
 
 #### 4. Configure Audio
 
@@ -304,18 +308,88 @@ python main.py --config my_config.yaml
 
 The UI will open in your browser at `http://localhost:7860`
 
+---
+
 ## 📖 Usage
 
-### Basic Workflow
+### Quick Start (UI-First Approach - No .env Needed!)
+
+**Meeting Agent uses a web UI for all configuration** - No need to edit config files!
+
+1. **Launch the Application**:
+   ```bash
+   python main.py
+   ```
+   The web interface will open automatically at `http://localhost:7860`
+
+2. **Go to ⚙️ Settings Tab**:
+   - **Enter API Keys** (required):
+     - Gemini API Key: Get from [makersuite.google.com](https://makersuite.google.com/app/apikey)
+     - DeepSeek API Key (optional): Get from [platform.deepseek.com](https://platform.deepseek.com/)
+
+   - **Choose Processing Mode**:
+     - **Classic (Whisper + AI)**: Full control, offline STT, GPU recommended
+     - **Gemini Live (Ultra Fast)**: 200-500ms latency, no GPU required
+
+   - **Select AI Analyzer** (for Classic mode):
+     - **Gemini**: Single API key, powerful models
+     - **DeepSeek**: Ultra-cheap (~$0.27/1M tokens)
+
+   - **Configure Translation**:
+     - Target language: Turkish / English / Auto
+
+   - **Model Settings**:
+     - Whisper model size (Classic mode only)
+     - Analysis interval (how often to run AI analysis)
+
+   - **Enable/Disable Features**:
+     - Web research toggle
+
+   - Click **💾 Save Settings**
+
+3. **Return to 📺 Live View Tab**
+
+4. **Click ▶️ Start Recording**
+
+5. **View Real-time Results**:
+   - **📝 Original**: Live transcription in source language
+   - **🌍 Translation**: Real-time translation to target language
+   - **🤖 Analysis**: AI-extracted topics, summary, action items
+   - **🔍 Research**: Web research on discussed topics
+
+6. **Click ⏹️ Stop Recording** when done
+
+**That's it!** All settings are managed through the web UI - no configuration files needed!
+
+### Optional: Using .env File
+
+If you prefer, you can set API keys via `.env` file instead of UI:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Add your keys:
+```env
+GEMINI_API_KEY=your_key_here
+DEEPSEEK_API_KEY=your_key_here  # optional
+```
+
+The UI will automatically detect and use these keys if present.
+
+---
+
+### Basic Workflow (Legacy)
 
 1. **Start Application**: Run `python main.py`
-2. **Configure Settings**:
+2. **Configure Settings** (in UI ⚙️ Settings tab):
    - **Translation Target**: Choose Turkish/English/Auto
      - English meeting → Select "Turkish" to get Turkish translation
      - Turkish meeting → Select "English" to get English translation
      - Mixed languages → Select "Auto" to keep original
    - **Enable Research**: Toggle web research on/off
-3. **Configure Audio**: Set your system audio as input
+3. **Configure Audio**: Set your system audio as input (see Audio Routing section)
 4. **Start Meeting**: Join your Google Meet/Zoom/Teams meeting
 5. **Click Start**: Begin recording in the UI
 6. **View Results**: See real-time transcription, translation, and analysis

@@ -1,6 +1,7 @@
 """
 Gradio UI for Meeting Agent.
 Displays real-time transcription, translation, and research results.
+All settings managed through UI - no .env file needed!
 """
 
 import gradio as gr
@@ -11,7 +12,7 @@ import threading
 
 
 class MeetingAgentUI:
-    """Gradio UI for Meeting Agent with real-time updates."""
+    """Gradio UI for Meeting Agent with centralized settings management."""
 
     def __init__(
         self,
@@ -52,7 +53,7 @@ class MeetingAgentUI:
         # Lock for thread-safe access
         self.state_lock = threading.Lock()
 
-        logger.info("MeetingAgentUI initialized with real-time updates")
+        logger.info("MeetingAgentUI initialized with centralized settings")
 
     def update_state(self, key: str, value: Any):
         """
@@ -77,163 +78,239 @@ class MeetingAgentUI:
             return self.shared_state.copy()
 
     def create_interface(self):
-        """Create Gradio interface."""
+        """Create Gradio interface with Settings tab."""
 
-        with gr.Blocks(title="Meeting Agent", theme=gr.themes.Soft()) as app:
+        with gr.Blocks(title="Meeting Agent - AI Meeting Assistant", theme=gr.themes.Soft()) as app:
             gr.Markdown("# 🎙️ Meeting Agent")
-            gr.Markdown("Real-time transcription, translation, and research for video conferences")
+            gr.Markdown("**Real-time AI Meeting Assistant** - Transcribe, translate, and analyze your meetings")
 
             with gr.Row():
+                # Left Column: Control Panel
                 with gr.Column(scale=1):
-                    # Control panel
-                    gr.Markdown("### Control")
-                    start_btn = gr.Button("▶️ Start Recording", variant="primary", size="lg")
-                    stop_btn = gr.Button("⏹️ Stop Recording", variant="stop", size="lg")
+                    gr.Markdown("### 🎬 Control")
+
+                    start_btn = gr.Button(
+                        "▶️ Start Recording",
+                        variant="primary",
+                        size="lg"
+                    )
+                    stop_btn = gr.Button(
+                        "⏹️ Stop Recording",
+                        variant="stop",
+                        size="lg"
+                    )
+
                     status_text = gr.Textbox(
                         label="Status",
-                        value="Ready",
-                        interactive=False
+                        value="⚙️ Ready - Configure settings and press Start",
+                        interactive=False,
+                        lines=2
                     )
 
-                    # Settings
-                    gr.Markdown("### Settings")
+                    gr.Markdown("---")
+                    gr.Markdown("### ℹ️ Quick Info")
 
-                    # Mode Selection
-                    mode_selector = gr.Radio(
-                        choices=["Classic (Whisper + AI)", "Gemini Live (Ultra Fast)"],
-                        value="Classic (Whisper + AI)",
-                        label="🔧 Processing Mode",
-                        info="Classic: Full control, offline STT | Live: Ultra-fast, all-in-one"
-                    )
-
-                    # Analyzer Selection (for Classic mode)
-                    analyzer_selector = gr.Radio(
-                        choices=["DeepSeek", "Gemini"],
-                        value="Gemini",
-                        label="🤖 AI Analyzer (Classic Mode)",
-                        info="DeepSeek: Cheap & fast | Gemini: Google's powerful models"
-                    )
-
-                    # Language info
                     detected_lang = gr.Textbox(
                         label="Detected Language",
                         value="Not detected yet",
                         interactive=False
                     )
 
-                    target_lang = gr.Dropdown(
-                        choices=["Turkish", "English", "Auto (Same as source)"],
-                        value="Turkish",
-                        label="Translation Target",
-                        info="Language to translate to"
+                    gr.Markdown(
+                        """
+                        **Tip:** Go to ⚙️ Settings tab to configure API keys and preferences before starting!
+                        """
                     )
 
-                    enable_research = gr.Checkbox(
-                        label="Enable Research",
-                        value=True
-                    )
+                # Right Column: Tabbed Content
+                with gr.Column(scale=3):
+                    with gr.Tabs() as main_tabs:
+                        # Tab 1: Live View
+                        with gr.TabItem("📺 Live View"):
+                            gr.Markdown("### Real-time Results")
 
-                    # Advanced Settings
-                    with gr.Accordion("🔑 API Keys & Advanced", open=False):
-                        gr.Markdown("**API Keys** (optional if set in .env)")
-
-                        deepseek_key = gr.Textbox(
-                            label="DeepSeek API Key",
-                            type="password",
-                            placeholder="sk-... (for Classic mode)",
-                            value=""
-                        )
-
-                        gemini_key = gr.Textbox(
-                            label="Gemini API Key",
-                            type="password",
-                            placeholder="AI... (for Live mode)",
-                            value=""
-                        )
-
-                        gr.Markdown("**Model Settings**")
-
-                        whisper_model = gr.Dropdown(
-                            choices=["tiny", "base", "small", "medium", "large-v3"],
-                            value="medium",
-                            label="Whisper Model (Classic)",
-                            info="Larger = better accuracy, more VRAM"
-                        )
-
-                        analysis_interval = gr.Slider(
-                            minimum=15,
-                            maximum=120,
-                            value=30,
-                            step=15,
-                            label="Analysis Interval (seconds)",
-                            info="How often to run AI analysis"
-                        )
-
-                with gr.Column(scale=2):
-                    # Main display
-                    gr.Markdown("### Live Transcription")
-
-                    with gr.Tabs():
-                        with gr.TabItem("Original"):
-                            transcript_box = gr.Textbox(
-                                label="Transcription",
-                                lines=10,
-                                max_lines=15,
-                                interactive=False,
-                                placeholder="Transcription will appear here..."
-                            )
-
-                        with gr.TabItem("Translation"):
-                            translation_box = gr.Textbox(
-                                label="Translation",
-                                lines=10,
-                                max_lines=15,
-                                interactive=False,
-                                placeholder="Translation will appear here..."
-                            )
-
-                        with gr.TabItem("Analysis"):
-                            with gr.Row():
-                                with gr.Column():
-                                    gr.Markdown("#### Topics")
-                                    topics_box = gr.Textbox(
-                                        label="Key Topics",
-                                        lines=5,
+                            with gr.Tabs():
+                                with gr.TabItem("📝 Original"):
+                                    transcript_box = gr.Textbox(
+                                        label="Transcription (Original Language)",
+                                        lines=12,
+                                        max_lines=20,
                                         interactive=False,
-                                        placeholder="Topics will appear here..."
+                                        placeholder="Start recording to see live transcription...",
+                                        autoscroll=True
                                     )
 
-                                with gr.Column():
-                                    gr.Markdown("#### Summary")
-                                    summary_box = gr.Textbox(
-                                        label="Summary",
-                                        lines=5,
+                                with gr.TabItem("🌍 Translation"):
+                                    translation_box = gr.Textbox(
+                                        label="Translation (Target Language)",
+                                        lines=12,
+                                        max_lines=20,
                                         interactive=False,
-                                        placeholder="Summary will appear here..."
+                                        placeholder="Translated text will appear here...",
+                                        autoscroll=True
                                     )
 
-                            gr.Markdown("#### Action Items")
-                            actions_box = gr.Textbox(
-                                label="Action Items",
-                                lines=5,
+                                with gr.TabItem("🤖 Analysis"):
+                                    with gr.Row():
+                                        with gr.Column():
+                                            gr.Markdown("#### 🎯 Topics")
+                                            topics_box = gr.Textbox(
+                                                label="Key Topics Discussed",
+                                                lines=6,
+                                                interactive=False,
+                                                placeholder="AI-extracted topics will appear here..."
+                                            )
+
+                                        with gr.Column():
+                                            gr.Markdown("#### 📊 Summary")
+                                            summary_box = gr.Textbox(
+                                                label="Meeting Summary",
+                                                lines=6,
+                                                interactive=False,
+                                                placeholder="AI-generated summary will appear here..."
+                                            )
+
+                                    gr.Markdown("#### ✅ Action Items")
+                                    actions_box = gr.Textbox(
+                                        label="Tasks & To-Dos",
+                                        lines=6,
+                                        interactive=False,
+                                        placeholder="Action items will be listed here..."
+                                    )
+
+                                with gr.TabItem("🔍 Research"):
+                                    research_box = gr.HTML(
+                                        label="Web Research Results",
+                                        value="<p style='color: #6b7280;'>Research results will appear here when enabled...</p>"
+                                    )
+
+                        # Tab 2: Settings (ALL CONFIGURATION HERE!)
+                        with gr.TabItem("⚙️ Settings"):
+                            gr.Markdown("### Configuration Center")
+                            gr.Markdown("*Configure all settings here - No .env file needed!*")
+
+                            # Processing Mode Section
+                            gr.Markdown("---")
+                            gr.Markdown("## 🔧 Processing Mode")
+
+                            mode_selector = gr.Radio(
+                                choices=[
+                                    "Classic (Whisper + AI)",
+                                    "Gemini Live (Ultra Fast)"
+                                ],
+                                value="Classic (Whisper + AI)",
+                                label="Select Processing Mode",
+                                info="Classic: Offline STT + AI Analysis | Live: All-in-one cloud processing (200-500ms latency)"
+                            )
+
+                            analyzer_selector = gr.Radio(
+                                choices=["Gemini", "DeepSeek"],
+                                value="Gemini",
+                                label="AI Analyzer (for Classic Mode only)",
+                                info="Gemini: Powerful, single API key | DeepSeek: Ultra-cheap (~$0.27/1M tokens)"
+                            )
+
+                            # API Keys Section
+                            gr.Markdown("---")
+                            gr.Markdown("## 🔑 API Keys")
+                            gr.Markdown("*Enter your API keys below. Get them from:*")
+                            gr.Markdown("- **Gemini**: [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)")
+                            gr.Markdown("- **DeepSeek**: [platform.deepseek.com](https://platform.deepseek.com/)")
+
+                            gemini_key = gr.Textbox(
+                                label="🤖 Gemini API Key",
+                                type="password",
+                                placeholder="AIza... (Required for Gemini Live or Gemini Analyzer)",
+                                value="",
+                                info="Used for: Gemini Live mode AND/OR Classic mode with Gemini analyzer"
+                            )
+
+                            deepseek_key = gr.Textbox(
+                                label="💰 DeepSeek API Key (Optional)",
+                                type="password",
+                                placeholder="sk-... (Only needed if using DeepSeek analyzer in Classic mode)",
+                                value="",
+                                info="Only required if you select DeepSeek as analyzer in Classic mode"
+                            )
+
+                            # Model Settings Section
+                            gr.Markdown("---")
+                            gr.Markdown("## 🎛️ Model Settings")
+
+                            whisper_model = gr.Dropdown(
+                                choices=["tiny", "base", "small", "medium", "large-v3"],
+                                value="medium",
+                                label="Whisper Model (Classic Mode Only)",
+                                info="tiny=fastest/lowest quality, large-v3=slowest/best quality (requires 8GB+ VRAM)"
+                            )
+
+                            analysis_interval = gr.Slider(
+                                minimum=15,
+                                maximum=120,
+                                value=30,
+                                step=15,
+                                label="AI Analysis Interval (seconds)",
+                                info="How often to run analysis (topics, summary, actions)"
+                            )
+
+                            # Language & Translation Section
+                            gr.Markdown("---")
+                            gr.Markdown("## 🌍 Language & Translation")
+
+                            target_lang = gr.Dropdown(
+                                choices=[
+                                    "Turkish",
+                                    "English",
+                                    "Auto (Same as source)"
+                                ],
+                                value="Turkish",
+                                label="Translation Target Language",
+                                info="Select target language for translation (Auto = no translation)"
+                            )
+
+                            # Features Section
+                            gr.Markdown("---")
+                            gr.Markdown("## 🚀 Features")
+
+                            enable_research = gr.Checkbox(
+                                label="Enable Web Research",
+                                value=True,
+                                info="Automatically research discussed topics using DuckDuckGo"
+                            )
+
+                            # Save Settings Button
+                            gr.Markdown("---")
+                            save_settings_btn = gr.Button(
+                                "💾 Save Settings",
+                                variant="secondary",
+                                size="sm"
+                            )
+                            settings_status = gr.Textbox(
+                                label="Settings Status",
+                                value="Settings loaded. Click 'Save Settings' to apply changes.",
                                 interactive=False,
-                                placeholder="Action items will appear here..."
+                                lines=1
                             )
 
-                        with gr.TabItem("Research"):
-                            research_box = gr.HTML(
-                                label="Research Results",
-                                value="<p>Research results will appear here...</p>"
-                            )
-
-            # Event handlers
+            # Event Handlers
             def start_recording(
                 mode_val, analyzer_val, target_lang_val, enable_research_val,
-                deepseek_key_val, gemini_key_val, whisper_model_val, analysis_interval_val
+                gemini_key_val, deepseek_key_val, whisper_model_val, analysis_interval_val
             ):
+                """Handle start recording button click."""
                 if self.on_start:
                     # Parse mode
-                    mode = "live" if "Gemini" in mode_val else "classic"
+                    mode = "live" if "Gemini Live" in mode_val else "classic"
+
+                    # Validate API keys
+                    if mode == "live" and not gemini_key_val.strip():
+                        return "❌ Error: Gemini API key required for Gemini Live mode! Go to Settings tab."
+
+                    if mode == "classic":
+                        if analyzer_val == "Gemini" and not gemini_key_val.strip():
+                            return "❌ Error: Gemini API key required for Gemini analyzer! Go to Settings tab."
+                        if analyzer_val == "DeepSeek" and not deepseek_key_val.strip():
+                            return "❌ Error: DeepSeek API key required for DeepSeek analyzer! Go to Settings tab."
 
                     # Pass all settings to callback
                     settings = {
@@ -241,23 +318,56 @@ class MeetingAgentUI:
                         'analyzer': analyzer_val.lower(),  # 'deepseek' or 'gemini'
                         'target_lang': target_lang_val,
                         'enable_research': enable_research_val,
-                        'deepseek_api_key': deepseek_key_val if deepseek_key_val.strip() else None,
-                        'gemini_api_key': gemini_key_val if gemini_key_val.strip() else None,
+                        'deepseek_api_key': deepseek_key_val.strip() if deepseek_key_val else None,
+                        'gemini_api_key': gemini_key_val.strip() if gemini_key_val else None,
                         'whisper_model': whisper_model_val,
                         'analysis_interval': int(analysis_interval_val)
                     }
-                    self.on_start(settings)
-                self.is_recording = True
 
-                mode_emoji = "⚡" if mode == "live" else "🔴"
-                mode_text = "Gemini Live" if mode == "live" else f"Classic ({analyzer_val})"
-                return f"{mode_emoji} Recording ({mode_text})..."
+                    try:
+                        self.on_start(settings)
+                        self.is_recording = True
+
+                        mode_emoji = "⚡" if mode == "live" else "🔴"
+                        mode_text = "Gemini Live" if mode == "live" else f"Classic ({analyzer_val})"
+                        return f"{mode_emoji} Recording in progress - {mode_text} mode active!"
+                    except Exception as e:
+                        return f"❌ Error starting: {str(e)}"
+
+                return "❌ Error: No start callback configured"
 
             def stop_recording():
+                """Handle stop recording button click."""
                 if self.on_stop:
                     self.on_stop()
                 self.is_recording = False
-                return "⏹️ Stopped"
+                return "⏹️ Stopped - Ready to start again"
+
+            def save_settings_action(
+                mode_val, analyzer_val, target_lang_val, enable_research_val,
+                gemini_key_val, deepseek_key_val, whisper_model_val, analysis_interval_val
+            ):
+                """Handle save settings button click."""
+                # Validate settings
+                mode = "live" if "Gemini Live" in mode_val else "classic"
+                warnings = []
+
+                if not gemini_key_val.strip() and not deepseek_key_val.strip():
+                    warnings.append("⚠️ No API keys entered - you'll need at least one to use the app")
+
+                if mode == "live" and not gemini_key_val.strip():
+                    warnings.append("⚠️ Gemini Live mode requires Gemini API key")
+
+                if mode == "classic" and analyzer_val == "Gemini" and not gemini_key_val.strip():
+                    warnings.append("⚠️ Gemini analyzer requires Gemini API key")
+
+                if mode == "classic" and analyzer_val == "DeepSeek" and not deepseek_key_val.strip():
+                    warnings.append("⚠️ DeepSeek analyzer requires DeepSeek API key")
+
+                if warnings:
+                    return "\n".join(warnings)
+                else:
+                    return "✅ Settings saved! Ready to start recording."
 
             def update_displays():
                 """Update all display components with latest state."""
@@ -272,12 +382,12 @@ class MeetingAgentUI:
                     state['research']
                 )
 
-            # Button click events
+            # Wire up event handlers
             start_btn.click(
                 fn=start_recording,
                 inputs=[
                     mode_selector, analyzer_selector, target_lang, enable_research,
-                    deepseek_key, gemini_key, whisper_model, analysis_interval
+                    gemini_key, deepseek_key, whisper_model, analysis_interval
                 ],
                 outputs=status_text
             )
@@ -285,6 +395,15 @@ class MeetingAgentUI:
             stop_btn.click(
                 fn=stop_recording,
                 outputs=status_text
+            )
+
+            save_settings_btn.click(
+                fn=save_settings_action,
+                inputs=[
+                    mode_selector, analyzer_selector, target_lang, enable_research,
+                    gemini_key, deepseek_key, whisper_model, analysis_interval
+                ],
+                outputs=settings_status
             )
 
             # Real-time updates - poll every 2 seconds
@@ -406,7 +525,7 @@ class MeetingAgentUI:
             research_data: List of research result dictionaries
         """
         if not research_data:
-            html = "<p>No research results yet...</p>"
+            html = "<p style='color: #6b7280;'>No research results yet...</p>"
         else:
             html = "<div style='font-family: sans-serif;'>"
             for result in research_data:
@@ -472,8 +591,8 @@ class MeetingAgentUI:
 def create_simple_demo():
     """Create a simple demo UI."""
 
-    def start_callback():
-        logger.info("Start button clicked")
+    def start_callback(settings):
+        logger.info(f"Start button clicked with settings: {settings}")
 
     def stop_callback():
         logger.info("Stop button clicked")
