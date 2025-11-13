@@ -1,6 +1,7 @@
 """
 Audio capture module for recording system audio from video conferences.
 Supports multiple platforms (Linux, Windows, macOS).
+Supports automatic sample rate adaptation for device compatibility.
 """
 
 import numpy as np
@@ -9,6 +10,7 @@ import queue
 import threading
 from typing import Optional, Callable
 from loguru import logger
+from scipy import signal
 
 
 class AudioCapture:
@@ -32,7 +34,7 @@ class AudioCapture:
             device: Audio device index (None for default)
             callback: Callback function to process audio chunks
         """
-        self.sample_rate = sample_rate
+        self.sample_rate = sample_rate  # Target sample rate (for Whisper: 16kHz)
         self.channels = channels
         self.chunk_duration = chunk_duration
         self.device = device
@@ -42,8 +44,9 @@ class AudioCapture:
         self.is_recording = False
         self.stream = None
         self._thread = None
+        self.actual_sample_rate = None  # Device's native sample rate (will be detected)
 
-        logger.info(f"AudioCapture initialized: {sample_rate}Hz, {channels}ch")
+        logger.info(f"AudioCapture initialized: target={sample_rate}Hz, {channels}ch")
 
     def list_devices(self):
         """List all available audio devices."""
@@ -69,9 +72,10 @@ class AudioCapture:
         self.audio_queue.put(audio_data)
 
     def _process_audio(self):
-        """Process audio chunks from queue."""
+        """Process audio chunks from queue with sample rate adaptation."""
         buffer = []
-        chunk_samples = int(self.sample_rate * self.chunk_duration)
+        # Calculate chunk size based on device's native sample rate
+        chunk_samples = int(self.actual_sample_rate * self.chunk_duration)
 
         while self.is_recording:
             try:
@@ -79,7 +83,7 @@ class AudioCapture:
                 audio_chunk = self.audio_queue.get(timeout=1)
                 buffer.append(audio_chunk)
 
-                # Check if we have enough samples
+                # Check if we have enough samples (at native rate)
                 total_samples = sum(len(chunk) for chunk in buffer)
 
                 if total_samples >= chunk_samples:
@@ -93,7 +97,18 @@ class AudioCapture:
                     # Reset buffer with remainder
                     buffer = [remainder] if len(remainder) > 0 else []
 
-                    # Process chunk
+                    # Resample to target rate if needed
+                    if self.actual_sample_rate != self.sample_rate:
+                        # Calculate target number of samples
+                        num_samples = int(len(chunk) * self.sample_rate / self.actual_sample_rate)
+                        chunk = signal.resample(chunk, num_samples)
+
+                        # Ensure 1D array (scipy.resample can return 2D)
+                        chunk = np.squeeze(chunk)
+                        if chunk.ndim > 1:
+                            chunk = chunk.flatten()
+
+                    # Process chunk (now at target sample rate)
                     if self.callback:
                         try:
                             self.callback(chunk, self.sample_rate)
@@ -106,17 +121,34 @@ class AudioCapture:
                 logger.error(f"Error processing audio: {e}")
 
     def start(self):
-        """Start audio capture."""
+        """Start audio capture with automatic sample rate adaptation."""
         if self.is_recording:
             logger.warning("Already recording")
             return
 
+        # Detect device's native sample rate
+        try:
+            if self.device is not None:
+                device_info = sd.query_devices(self.device, 'input')
+            else:
+                device_info = sd.query_devices(kind='input')
+
+            self.actual_sample_rate = int(device_info['default_samplerate'])
+            logger.info(f"Device native sample rate: {self.actual_sample_rate}Hz")
+
+            if self.actual_sample_rate != self.sample_rate:
+                logger.info(f"Will resample from {self.actual_sample_rate}Hz to {self.sample_rate}Hz")
+        except Exception as e:
+            logger.warning(f"Could not detect device sample rate: {e}")
+            logger.warning(f"Using target sample rate: {self.sample_rate}Hz")
+            self.actual_sample_rate = self.sample_rate
+
         logger.info("Starting audio capture...")
         self.is_recording = True
 
-        # Start audio stream
+        # Start audio stream with device's native sample rate
         self.stream = sd.InputStream(
-            samplerate=self.sample_rate,
+            samplerate=self.actual_sample_rate,  # Use native rate
             channels=self.channels,
             device=self.device,
             callback=self._audio_callback
@@ -127,7 +159,7 @@ class AudioCapture:
         self._thread = threading.Thread(target=self._process_audio, daemon=True)
         self._thread.start()
 
-        logger.info("Audio capture started")
+        logger.info(f"Audio capture started (recording at {self.actual_sample_rate}Hz)")
 
     def stop(self):
         """Stop audio capture."""

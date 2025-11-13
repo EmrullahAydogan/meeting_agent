@@ -108,11 +108,15 @@ class NLLBTranslator:
             if self.device == "cuda":
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
+            # Convert target language code to token ID
+            # Modern transformers API doesn't have lang_code_to_id attribute
+            forced_bos_token_id = self.tokenizer.convert_tokens_to_ids(target)
+
             # Generate translation
             with torch.no_grad():
                 generated_tokens = self.model.generate(
                     **inputs,
-                    forced_bos_token_id=self.tokenizer.lang_code_to_id[target],
+                    forced_bos_token_id=forced_bos_token_id,
                     max_length=max_length,
                     num_beams=5,
                     early_stopping=True

@@ -4,7 +4,7 @@
 audio:
   sample_rate: 16000
   channels: 1
-  chunk_duration: 30  # seconds
+  chunk_duration: 5  # seconds (reduced from 30s for faster updates)
   device: null  # null for default, or specify device index
 
 # Whisper Settings
